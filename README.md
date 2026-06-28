@@ -2,7 +2,7 @@
 
 > Something completely different.
 
-**Live site:** https://hugharvr.github.io/the_port_chalmers_company/
+**Live site:** https://deltarun28.github.io/the_port_chalmers_company/
 
 ---
 
