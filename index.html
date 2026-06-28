@@ -120,6 +120,9 @@
       letter-spacing: 2px;
       box-shadow: 0 0 30px rgba(92, 159, 212, 0.3);
       animation: pulse 4s ease-in-out infinite;
+      color: #e8eaf6;
+      text-decoration: none;
+      cursor: pointer;
     }
 
     @keyframes pulse {
@@ -130,14 +133,6 @@
     .anchor {
       margin-top: 3rem;
       font-size: 2rem;
-      cursor: pointer;
-      display: inline-block;
-      transition: transform 0.2s ease;
-      text-decoration: none;
-    }
-
-    .anchor:hover {
-      transform: scale(1.3);
     }
   </style>
 </head>
@@ -152,8 +147,8 @@
     <p class="tag">Est. 2026 &mdash; Port Chalmers, NZ</p>
     <h1>The Port Chalmers<br>Company</h1>
     <p class="subtitle">Something completely different.</p>
-    <div class="hello">⚓ Hello, World!</div>
-    <a class="anchor" href="about.html" title="About this project">🌊</a>
+    <a class="hello" href="about.html">⚓ Hello, World!</a>
+    <div class="anchor">🌊</div>
   </div>
 
   <script>
