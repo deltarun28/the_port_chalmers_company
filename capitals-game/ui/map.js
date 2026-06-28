@@ -1,222 +1,287 @@
-import { COASTLINE } from '../data/coastline.js';
+import { LAND_POLYGONS } from '../data/land_polygons.js';
 
-const W = 800;
-const H = 400;
-const MAX_ZOOM = 12;
+const SIZE = 600;
+const CX = SIZE / 2;
+const CY = SIZE / 2;
+const BASE_R = 275;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 8;
 
-function project(lat, lng) {
-  const x = ((lng + 180) / 360) * W;
-  const latRad = (lat * Math.PI) / 180;
-  const mercN = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
-  const y = (H / 2) - (W * mercN) / (2 * Math.PI);
-  return { x, y: Math.max(0, Math.min(H, y)) };
+function ortho(lat, lng, rotLat, rotLng) {
+  const phi  = lat * Math.PI / 180;
+  const lam  = (lng - rotLng) * Math.PI / 180;
+  const phi0 = rotLat * Math.PI / 180;
+  const sinPhi0 = Math.sin(phi0), cosPhi0 = Math.cos(phi0);
+  const sinPhi  = Math.sin(phi),  cosPhi  = Math.cos(phi);
+  const cosLam  = Math.cos(lam),  sinLam  = Math.sin(lam);
+  return {
+    x: cosPhi * sinLam,
+    y: cosPhi0 * sinPhi - sinPhi0 * cosPhi * cosLam,
+    z: sinPhi0 * sinPhi + cosPhi0 * cosPhi * cosLam,
+  };
+}
+
+function toCanvas(p, R) {
+  return { cx: CX + p.x * R, cy: CY - p.y * R };
 }
 
 export function createMap(container, capitals, onGuess) {
-  const ns = 'http://www.w3.org/2000/svg';
-
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
+  wrap.style.display = 'inline-block';
   container.appendChild(wrap);
 
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('class', 'world-map');
-  svg.style.cursor = 'grab';
-  svg.style.display = 'block';
-  svg.style.userSelect = 'none';
+  const canvas = document.createElement('canvas');
+  canvas.width  = SIZE;
+  canvas.height = SIZE;
+  canvas.className = 'globe-canvas';
+  canvas.style.cursor = 'grab';
+  wrap.appendChild(canvas);
 
-  const bg = document.createElementNS(ns, 'rect');
-  bg.setAttribute('width', W); bg.setAttribute('height', H); bg.setAttribute('fill', '#0a0e1a');
-  svg.appendChild(bg);
+  const tooltip = document.createElement('div');
+  tooltip.className = 'map-tooltip';
+  tooltip.style.display = 'none';
+  wrap.appendChild(tooltip);
 
-  // land outline
-  const land = document.createElementNS(ns, 'path');
-  land.setAttribute('d', COASTLINE);
-  land.setAttribute('fill', '#111827');
-  land.setAttribute('stroke', 'rgba(255,255,255,0.25)');
-  land.setAttribute('stroke-width', '0.5');
-  land.setAttribute('stroke-linejoin', 'round');
-  svg.appendChild(land);
+  const ctx = canvas.getContext('2d');
 
-  function gridLine(x1, y1, x2, y2, stroke, width) {
-    const l = document.createElementNS(ns, 'line');
-    l.setAttribute('x1', x1); l.setAttribute('y1', y1);
-    l.setAttribute('x2', x2); l.setAttribute('y2', y2);
-    l.setAttribute('stroke', stroke); l.setAttribute('stroke-width', width);
-    svg.appendChild(l);
-  }
+  const rot = { lat: 20, lng: 0 };
+  let zoom = 1;
+  let R = BASE_R;
 
-  function gridLabel(x, y, text, anchor = 'start') {
-    const t = document.createElementNS(ns, 'text');
-    t.setAttribute('x', x); t.setAttribute('y', y);
-    t.setAttribute('fill', 'rgba(255,255,255,0.28)');
-    t.setAttribute('font-size', '8');
-    t.setAttribute('font-family', 'sans-serif');
-    t.setAttribute('text-anchor', anchor);
-    t.textContent = text;
-    svg.appendChild(t);
-  }
-
-  // Longitude lines every 45° ≈ 5,000 km along the equator
-  for (let lng = -135; lng <= 135; lng += 45) {
-    const { x } = project(0, lng);
-    gridLine(x, 0, x, H, '#1e3a52', '0.5');
-    const km = Math.round(Math.abs(lng) / 360 * 40075 / 1000) * 1000;
-    gridLabel(x + 2, 8, `${km.toLocaleString()} km`);
-  }
-
-  // Latitude lines every 18° ≈ 2,000 km from equator
-  const { y: eqY } = project(0, 0);
-  gridLine(0, eqY, W, eqY, '#2e5070', '1');
-  gridLabel(2, eqY - 3, 'Equator');
-
-  for (let lat = 18; lat <= 72; lat += 18) {
-    const km = `${Math.round(lat / 360 * 40008 / 1000) * 1000}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    const { y: yn } = project(lat, 0);
-    gridLine(0, yn, W, yn, '#1e3a52', '0.5');
-    gridLabel(2, yn - 3, `${km} km N`);
-
-    const { y: ys } = project(-lat, 0);
-    gridLine(0, ys, W, ys, '#1e3a52', '0.5');
-    gridLabel(2, ys - 3, `${km} km S`);
-  }
-
-  let vb = { x: 0, y: 0, w: W, h: H };
-
-  // dots stored as { g, circle, baseR } so we can mutate baseR without dataset
+  // dot state: { lat, lng, color, r, opacity }
   const dots = new Map();
+  capitals.forEach(c => {
+    dots.set(c.capital, { lat: c.lat, lng: c.lng, color: '#2e7ab5', r: 3, opacity: 0.7 });
+  });
 
-  const HIT_R = 10;
+  function draw() {
+    R = BASE_R * zoom;
+    ctx.clearRect(0, 0, SIZE, SIZE);
 
-  function applyViewBox() {
-    svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
-    const scale = vb.w / W;
-    dots.forEach(dot => {
-      dot.circle.setAttribute('r', dot.baseR * scale);
-      dot.hit.setAttribute('r', HIT_R * scale);
+    // circular clip
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(CX, CY, R + 1, 0, Math.PI * 2);
+    ctx.clip();
+
+    // ocean background
+    ctx.fillStyle = '#0a0e1a';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    // land polygons
+    ctx.fillStyle = '#111827';
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 0.7;
+
+    for (const ring of LAND_POLYGONS) {
+      ctx.beginPath();
+      let penDown = false;
+      for (const [lat, lng] of ring) {
+        const p = ortho(lat, lng, rot.lat, rot.lng);
+        if (p.z < -0.05) {
+          penDown = false;
+          continue;
+        }
+        const { cx, cy } = toCanvas(p, R);
+        if (!penDown) { ctx.moveTo(cx, cy); penDown = true; }
+        else ctx.lineTo(cx, cy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // grid lines
+    drawGrid();
+
+    ctx.restore();
+
+    // globe rim
+    ctx.beginPath();
+    ctx.arc(CX, CY, R + 1, 0, Math.PI * 2);
+    ctx.strokeStyle = '#163d5e';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // capital dots
+    dots.forEach((dot, name) => {
+      const p = ortho(dot.lat, dot.lng, rot.lat, rot.lng);
+      if (p.z < 0) return;
+      const { cx, cy } = toCanvas(p, R);
+      const fade = Math.min(1, (p.z + 0.05) / 0.15);
+      ctx.beginPath();
+      ctx.arc(cx, cy, dot.r, 0, Math.PI * 2);
+      ctx.fillStyle = dot.color;
+      ctx.globalAlpha = dot.opacity * fade;
+      ctx.fill();
+      ctx.globalAlpha = 1;
     });
   }
 
-  function clamp() {
-    vb.w = Math.max(W / MAX_ZOOM, Math.min(W, vb.w));
-    vb.h = Math.max(H / MAX_ZOOM, Math.min(H, vb.h));
-    vb.x = Math.max(0, Math.min(W - vb.w, vb.x));
-    vb.y = Math.max(0, Math.min(H - vb.h, vb.y));
+  function drawGrid() {
+    ctx.strokeStyle = '#1e3a52';
+    ctx.lineWidth = 0.5;
+
+    // meridians every 45°
+    for (let lng = -180; lng < 180; lng += 45) {
+      ctx.beginPath();
+      let penDown = false;
+      for (let lat = -90; lat <= 90; lat += 2) {
+        const p = ortho(lat, lng, rot.lat, rot.lng);
+        if (p.z < 0) { penDown = false; continue; }
+        const { cx, cy } = toCanvas(p, R);
+        if (!penDown) { ctx.moveTo(cx, cy); penDown = true; }
+        else ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+    }
+
+    // parallels every 18°, equator brighter
+    for (let lat = -72; lat <= 72; lat += 18) {
+      ctx.strokeStyle = lat === 0 ? '#2e5070' : '#1e3a52';
+      ctx.lineWidth = lat === 0 ? 1 : 0.5;
+      ctx.beginPath();
+      let penDown = false;
+      for (let lng = -180; lng <= 180; lng += 2) {
+        const p = ortho(lat, lng, rot.lat, rot.lng);
+        if (p.z < 0) { penDown = false; continue; }
+        const { cx, cy } = toCanvas(p, R);
+        if (!penDown) { ctx.moveTo(cx, cy); penDown = true; }
+        else ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+    }
   }
 
-  svg.addEventListener('wheel', e => {
-    e.preventDefault();
-    const rect = svg.getBoundingClientRect();
-    const mx = ((e.clientX - rect.left) / rect.width) * vb.w + vb.x;
-    const my = ((e.clientY - rect.top) / rect.height) * vb.h + vb.y;
-    const factor = e.deltaY > 0 ? 1.18 : 0.85;
-    const newW = vb.w * factor;
-    const newH = vb.h * factor;
-    vb.x = mx - (mx - vb.x) * (newW / vb.w);
-    vb.y = my - (my - vb.y) * (newH / vb.h);
-    vb.w = newW;
-    vb.h = newH;
-    clamp();
-    applyViewBox();
-  }, { passive: false });
+  // --- interaction ---
 
   let dragging = false;
   let hasDragged = false;
   let dragStart = null;
 
-  svg.addEventListener('mousedown', e => {
+  function canvasXY(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = SIZE / rect.width;
+    const scaleY = SIZE / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top)  * scaleY,
+    };
+  }
+
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 1 / 1.18 : 1.18;
+    zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * factor));
+    draw();
+  }, { passive: false });
+
+  canvas.addEventListener('mousedown', e => {
     dragging = true;
     hasDragged = false;
-    dragStart = { x: e.clientX, y: e.clientY, vbx: vb.x, vby: vb.y };
-    svg.style.cursor = 'grabbing';
+    dragStart = { x: e.clientX, y: e.clientY, lat: rot.lat, lng: rot.lng };
+    canvas.style.cursor = 'grabbing';
   });
 
   window.addEventListener('mousemove', e => {
     if (!dragging) return;
-    const rect = svg.getBoundingClientRect();
-    const dx = (e.clientX - dragStart.x) / rect.width * vb.w;
-    const dy = (e.clientY - dragStart.y) / rect.height * vb.h;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDragged = true;
-    vb.x = dragStart.vbx - dx;
-    vb.y = dragStart.vby - dy;
-    clamp();
-    applyViewBox();
+    const rect = canvas.getBoundingClientRect();
+    const degPerPx = 90 / (rect.width * zoom * 0.5);
+    rot.lng = dragStart.lng + dx * degPerPx;
+    rot.lat = Math.max(-80, Math.min(80, dragStart.lat - dy * degPerPx));
+    draw();
   });
 
   window.addEventListener('mouseup', () => {
     dragging = false;
-    svg.style.cursor = 'grab';
+    canvas.style.cursor = 'grab';
   });
 
-  let lastTouches = null;
-  svg.addEventListener('touchstart', e => {
-    e.preventDefault();
-    lastTouches = e.touches;
-    hasDragged = false;
-  }, { passive: false });
-
-  svg.addEventListener('touchmove', e => {
-    e.preventDefault();
-    const rect = svg.getBoundingClientRect();
-    if (e.touches.length === 1 && lastTouches.length === 1) {
-      const dx = (e.touches[0].clientX - lastTouches[0].clientX) / rect.width * vb.w;
-      const dy = (e.touches[0].clientY - lastTouches[0].clientY) / rect.height * vb.h;
-      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) hasDragged = true;
-      vb.x -= dx; vb.y -= dy;
-    } else if (e.touches.length === 2 && lastTouches.length === 2) {
-      const prevDist = Math.hypot(
-        lastTouches[0].clientX - lastTouches[1].clientX,
-        lastTouches[0].clientY - lastTouches[1].clientY
-      );
-      const newDist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const factor = prevDist / newDist;
-      const cx = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) / rect.width * vb.w + vb.x;
-      const cy = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top) / rect.height * vb.h + vb.y;
-      const newW = vb.w * factor;
-      vb.x = cx - (cx - vb.x) * (newW / vb.w);
-      vb.y = cy - (cy - vb.y) * (newW / vb.w);
-      vb.w = newW;
-      vb.h = newW * (H / W);
+  // hover tooltip
+  canvas.addEventListener('mousemove', e => {
+    if (dragging) { tooltip.style.display = 'none'; return; }
+    const { x, y } = canvasXY(e);
+    const hit = findNearest(x, y, 14);
+    if (hit) {
+      tooltip.textContent = `${hit.flag} ${hit.capital}, ${hit.country}`;
+      const rect = canvas.getBoundingClientRect();
+      tooltip.style.display = 'block';
+      tooltip.style.left = `${e.clientX - rect.left + 12}px`;
+      tooltip.style.top  = `${e.clientY - rect.top  - 8}px`;
+    } else {
+      tooltip.style.display = 'none';
     }
-    clamp();
-    applyViewBox();
+  });
+
+  canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+  canvas.addEventListener('click', e => {
+    if (hasDragged) return;
+    const { x, y } = canvasXY(e);
+    const hit = findNearest(x, y, 18);
+    if (hit) onGuess(hit);
+  });
+
+  // touch
+  let lastTouches = null;
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    hasDragged = false;
+    lastTouches = e.touches;
+    if (e.touches.length === 1) {
+      dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, lat: rot.lat, lng: rot.lng };
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches.length === 1 && lastTouches.length === 1) {
+      const dx = e.touches[0].clientX - dragStart.x;
+      const dy = e.touches[0].clientY - dragStart.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged = true;
+      const degPerPx = 90 / (rect.width * zoom * 0.5);
+      rot.lng = dragStart.lng + dx * degPerPx;
+      rot.lat = Math.max(-80, Math.min(80, dragStart.lat - dy * degPerPx));
+      draw();
+    } else if (e.touches.length === 2 && lastTouches.length === 2) {
+      const prev = Math.hypot(lastTouches[0].clientX - lastTouches[1].clientX, lastTouches[0].clientY - lastTouches[1].clientY);
+      const curr = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * (curr / prev)));
+      draw();
+    }
     lastTouches = e.touches;
   }, { passive: false });
 
-  capitals.forEach(capital => {
-    const { x, y } = project(capital.lat, capital.lng);
-    const g = document.createElementNS(ns, 'g');
-    g.setAttribute('class', 'capital-dot');
-
-    const circle = document.createElementNS(ns, 'circle');
-    circle.setAttribute('cx', x); circle.setAttribute('cy', y);
-    circle.setAttribute('r', '3');
-    circle.setAttribute('fill', '#2e7ab5');
-    circle.setAttribute('opacity', '0.7');
-
-    const hit = document.createElementNS(ns, 'circle');
-    hit.setAttribute('cx', x); hit.setAttribute('cy', y);
-    hit.setAttribute('r', HIT_R);
-    hit.setAttribute('fill', 'transparent');
-
-    const title = document.createElementNS(ns, 'title');
-    title.textContent = `${capital.flag} ${capital.capital}, ${capital.country}`;
-
-    g.appendChild(hit); g.appendChild(circle); g.appendChild(title);
-    g.addEventListener('click', () => {
-      if (hasDragged) return;
-      onGuess(capital);
-    });
-    svg.appendChild(g);
-    dots.set(capital.capital, { g, circle, hit, baseR: 3 });
+  canvas.addEventListener('touchend', e => {
+    if (!hasDragged && e.changedTouches.length === 1) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = SIZE / rect.width;
+      const scaleY = SIZE / rect.height;
+      const x = (e.changedTouches[0].clientX - rect.left) * scaleX;
+      const y = (e.changedTouches[0].clientY - rect.top)  * scaleY;
+      const hit = findNearest(x, y, 22);
+      if (hit) onGuess(hit);
+    }
   });
 
-  wrap.appendChild(svg);
+  function findNearest(cx, cy, hitPx) {
+    let best = null, bestDist = hitPx * hitPx;
+    for (const cap of capitals) {
+      const p = ortho(cap.lat, cap.lng, rot.lat, rot.lng);
+      if (p.z < 0) continue;
+      const { cx: px, cy: py } = toCanvas(p, R);
+      const d2 = (px - cx) ** 2 + (py - cy) ** 2;
+      if (d2 < bestDist) { bestDist = d2; best = cap; }
+    }
+    return best;
+  }
 
+  // controls
   const controls = document.createElement('div');
   controls.className = 'map-controls';
   controls.innerHTML = `
@@ -228,50 +293,35 @@ export function createMap(container, capitals, onGuess) {
     const action = e.target.dataset.action;
     if (!action) return;
     if (action === 'reset') {
-      vb = { x: 0, y: 0, w: W, h: H };
+      zoom = 1; rot.lat = 20; rot.lng = 0;
     } else {
-      const factor = action === 'in' ? 0.65 : 1.5;
-      const cx = vb.x + vb.w / 2;
-      const cy = vb.y + vb.h / 2;
-      vb.w *= factor; vb.h *= factor;
-      vb.x = cx - vb.w / 2;
-      vb.y = cy - vb.h / 2;
+      zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * (action === 'in' ? 1.4 : 0.7)));
     }
-    clamp();
-    applyViewBox();
+    draw();
   });
   wrap.appendChild(controls);
 
+  draw();
+
   return {
     update(guesses, status, target) {
-      const scale = vb.w / W;
       guesses.forEach(g => {
         const dot = dots.get(g.capital);
         if (!dot) return;
-        dot.circle.setAttribute('fill', g.correct ? '#22c55e' : '#f97316');
-        dot.baseR = 5;
-        dot.circle.setAttribute('r', 5 * scale);
-        dot.circle.setAttribute('opacity', '1');
+        dot.color   = g.correct ? '#22c55e' : '#f97316';
+        dot.r       = 5;
+        dot.opacity = 1;
       });
       if (status !== 'playing' && target) {
         const dot = dots.get(target.capital);
-        if (dot) {
-          dot.circle.setAttribute('fill', '#22c55e');
-          dot.baseR = 7;
-          dot.circle.setAttribute('r', 7 * scale);
-          dot.circle.setAttribute('opacity', '1');
-        }
+        if (dot) { dot.color = '#22c55e'; dot.r = 7; dot.opacity = 1; }
       }
+      draw();
     },
     reset() {
-      const scale = vb.w / W;
-      dots.forEach(dot => {
-        dot.baseR = 3;
-        dot.circle.setAttribute('fill', '#2e7ab5');
-        dot.circle.setAttribute('opacity', '0.7');
-        dot.circle.setAttribute('r', 3 * scale);
-        dot.hit.setAttribute('r', HIT_R * scale);
-      });
+      dots.forEach(dot => { dot.color = '#2e7ab5'; dot.r = 3; dot.opacity = 0.7; });
+      zoom = 1; rot.lat = 20; rot.lng = 0;
+      draw();
     },
   };
 }
