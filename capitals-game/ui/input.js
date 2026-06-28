@@ -74,6 +74,7 @@ export function createInput(container, capitals, onGuess) {
 
   return {
     disable() { input.disabled = true; },
+    enable() { input.disabled = false; },
     focus() { input.focus(); },
   };
 }
