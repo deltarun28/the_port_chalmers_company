@@ -66,6 +66,31 @@
     }
     .mode-btn:hover:not(.active) { border-color: #5c9fd4; color: #e8eaf6; }
 
+    .diff-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+    }
+
+    .diff-btn {
+      padding: 0.25rem 0.85rem;
+      border-radius: 20px;
+      border: 1px solid #2e7ab5;
+      background: transparent;
+      color: #8ab4cc;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .diff-btn.active {
+      background: #163d5e;
+      color: #e8eaf6;
+      border-color: #5c9fd4;
+    }
+    .diff-btn:hover:not(.active) { border-color: #5c9fd4; color: #e8eaf6; }
+
     #new-game-btn {
       padding: 0.35rem 1rem;
       border-radius: 20px;
@@ -122,6 +147,15 @@
       font-size: 0.95rem;
     }
     #suggestions li:hover, #suggestions li.active { background: #163d5e; }
+
+    /* Flat SVG map */
+    .world-map {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #163d5e;
+    }
+    .capital-dot { cursor: pointer; }
+    .capital-dot:hover circle { opacity: 1; fill: #a8d8f0; }
 
     /* Globe */
     .globe-canvas {
@@ -280,6 +314,7 @@
     <button class="mode-btn" id="random-btn">🎲 Random</button>
     <button id="new-game-btn">↺ New game</button>
   </div>
+  <div class="diff-bar" id="diff-bar"></div>
 </header>
 
 <main id="main">
@@ -293,6 +328,8 @@
   import { createMap } from './ui/map.js';
   import { renderResults } from './ui/results.js';
   import { share } from './ui/share.js';
+  import { DIFFICULTIES } from './lib/difficulty.js';
+  import { createDifficultyPicker } from './ui/difficulty_picker.js';
 
   const main = document.getElementById('main');
   const dailyBtn = document.getElementById('daily-btn');
@@ -305,9 +342,9 @@
   ]);
 
   let mode = 'daily';
+  let difficultyKey = localStorage.getItem('difficulty') || 'moderate';
   let inputCtrl, mapCtrl;
 
-  // build the layout once
   main.innerHTML = `
     <div class="left-col">
       <div id="input-container"></div>
@@ -319,17 +356,26 @@
     </div>
   `;
 
-  mapCtrl = createMap(
-    document.getElementById('map-container'),
-    capitals,
-    handleGuess
+  createDifficultyPicker(
+    document.getElementById('diff-bar'),
+    difficultyKey,
+    key => {
+      difficultyKey = key;
+      localStorage.setItem('difficulty', key);
+      rebuildMap();
+      startGame();
+    }
   );
 
-  inputCtrl = createInput(
-    document.getElementById('input-container'),
-    capitals,
-    handleGuess
-  );
+  inputCtrl = createInput(document.getElementById('input-container'), capitals, handleGuess);
+
+  function rebuildMap() {
+    const mapContainer = document.getElementById('map-container');
+    mapContainer.innerHTML = '';
+    mapCtrl = createMap(mapContainer, capitals, handleGuess, DIFFICULTIES[difficultyKey]);
+  }
+
+  rebuildMap();
 
   function getTarget() {
     if (mode === 'daily') {
@@ -342,7 +388,7 @@
 
   function startGame() {
     const target = getTarget();
-    game = createGame(target, distances);
+    game = createGame(target, distances, difficultyKey);
     guessedCapitals = new Set();
 
     mapCtrl.reset();
@@ -350,7 +396,7 @@
     inputCtrl.clear();
     inputCtrl.focus();
     document.getElementById('share-container').innerHTML = '';
-    renderResults(document.getElementById('results-container'), [], 'playing', target, 6);
+    renderResults(document.getElementById('results-container'), [], 'playing', target, DIFFICULTIES[difficultyKey].maxGuesses);
   }
 
   function handleGuess(capital) {
@@ -363,7 +409,8 @@
     mapCtrl.update(newState.guesses, newState.status, newState.target);
     renderResults(
       document.getElementById('results-container'),
-      newState.guesses, newState.status, newState.target, 6
+      newState.guesses, newState.status, newState.target,
+      DIFFICULTIES[difficultyKey].maxGuesses
     );
 
     if (newState.status === 'won') {

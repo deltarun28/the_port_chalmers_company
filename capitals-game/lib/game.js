@@ -1,9 +1,12 @@
-export function createGame(target, distances, maxAttempts = 6) {
+import { DIFFICULTIES } from './difficulty.js';
+
+export function createGame(target, distances, difficulty = 'moderate') {
+  const { maxGuesses } = DIFFICULTIES[difficulty];
   const state = {
     target,
     guesses: [],
     attempts: 0,
-    maxAttempts,
+    maxAttempts: maxGuesses,
     status: 'playing',
   };
 

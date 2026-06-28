@@ -28,19 +28,25 @@ capitals-game/
 │
 ├── data/
 │   ├── capitals.json        ← source of truth for all capital data
-│   └── distances.json       ← pre-computed distance table (generated, not hand-written)
+│   ├── coastline.js         ← SVG path string for flat map (generated)
+│   ├── distances.json       ← pre-computed distance table (generated)
+│   └── land_polygons.js     ← lat/lng polygon arrays for globe (generated)
 │
 ├── scripts/
-│   └── generate_distances.py  ← one-time build script, not part of the game
+│   ├── generate_distances.py  ← one-time build script
+│   └── generate_coastline.py  ← generates coastline.js + land_polygons.js
 │
 ├── lib/                     ← game logic (no DOM, no UI)
-│   ├── validator.js
+│   ├── daily_target.js
+│   ├── difficulty.js        ← difficulty config (maxGuesses, showGrid, showRings, globeView)
 │   ├── game.js
-│   └── daily_target.js
+│   ├── ring_calculator.js   ← pure function: distance + guess# → ring inner/outer radius
+│   └── validator.js
 │
 ├── ui/                      ← everything the player sees and interacts with
+│   ├── difficulty_picker.js ← difficulty selector buttons
 │   ├── input.js             ← autocomplete text box
-│   ├── map.js               ← clickable SVG world map
+│   ├── map.js               ← flat SVG map (easy/moderate) or canvas globe (hard)
 │   ├── results.js           ← guess history cards
 │   └── share.js             ← end-of-game score card
 │
@@ -151,14 +157,14 @@ The core game state manager. Holds the target capital, the list of guesses so
 far, the attempt count, and the win/lose status. Exposes one primary function:
 `submitGuess(capitalObject)`.
 
-**In:** capital object (from `validator.js` or `map.js`)
+**In:** capital object (from `validator.js` or `map.js`), difficulty string
 **Out:** updated game state object:
 ```js
 {
   target: { ... },       // the mystery capital (revealed on game end)
   guesses: [ ... ],      // array of { capital, distance, flag, country }
   attempts: 3,           // number of guesses made
-  maxAttempts: 6,
+  maxAttempts: 6,        // read from difficulty.js on init
   status: "playing"      // "playing" | "won" | "lost"
 }
 ```
@@ -166,7 +172,36 @@ far, the attempt count, and the win/lose status. Exposes one primary function:
 **Rules:**
 - No DOM. No fetch. Accepts and returns plain objects only.
 - Distance is looked up from `distances.json`, not calculated at runtime.
+- `maxAttempts` is driven by the selected difficulty via `difficulty.js`.
 - `index.html` calls this and passes the result to the UI modules.
+
+---
+
+### `lib/difficulty.js`
+Pure config object. Three difficulty levels: `easy`, `moderate`, `hard`.
+
+**Exports:** `DIFFICULTIES` — keyed by difficulty string, each with:
+- `maxGuesses` — number of attempts allowed
+- `showGrid` — whether the flat map shows lat/lng grid lines
+- `showRings` — whether the flat map draws proportional rings per guess
+- `globeView` — whether to use the 3D globe instead of the flat map
+
+**Rules:**
+- No logic, no DOM, no imports. Pure data.
+
+---
+
+### `lib/ring_calculator.js`
+Pure function. Takes a distance in km and a 1-indexed guess number, returns
+the inner and outer radius of the ring to draw for that guess.
+
+**In:** `distanceKm`, `guessNumber` (1-indexed)
+**Out:** `{ innerRadius, outerRadius, thickness }` — all in km
+
+**Rules:**
+- Pure function. No side effects. No imports.
+- The UI converts km to SVG pixels using `40075 / mapWidthPx`.
+- Unit tests in `ring_calculator.test.js` (run with `node --test`).
 
 ---
 
