@@ -1,3 +1,5 @@
+import { COASTLINE } from '../data/coastline.js';
+
 const W = 800;
 const H = 400;
 const MAX_ZOOM = 12;
@@ -25,8 +27,17 @@ export function createMap(container, capitals, onGuess) {
   svg.style.userSelect = 'none';
 
   const bg = document.createElementNS(ns, 'rect');
-  bg.setAttribute('width', W); bg.setAttribute('height', H); bg.setAttribute('fill', '#0a1628');
+  bg.setAttribute('width', W); bg.setAttribute('height', H); bg.setAttribute('fill', '#0a0e1a');
   svg.appendChild(bg);
+
+  // land outline
+  const land = document.createElementNS(ns, 'path');
+  land.setAttribute('d', COASTLINE);
+  land.setAttribute('fill', '#111827');
+  land.setAttribute('stroke', 'rgba(255,255,255,0.25)');
+  land.setAttribute('stroke-width', '0.5');
+  land.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(land);
 
   for (let lng = -180; lng <= 180; lng += 30) {
     const { x } = project(0, lng);
