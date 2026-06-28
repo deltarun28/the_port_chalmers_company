@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — The Port Chalmers Company</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #0a0e1a;
+      color: #e8eaf6;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle 3s infinite alternate;
+    }
+
+    @keyframes twinkle {
+      from { opacity: 0.2; }
+      to { opacity: 1; }
+    }
+
+    .ocean {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(180deg, transparent, #0d2b45);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .wave {
+      position: fixed;
+      bottom: 0;
+      left: -100%;
+      width: 300%;
+      height: 120px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 100'%3E%3Cpath fill='%23163d5e' d='M0,50 C360,100 1080,0 1440,50 L1440,100 L0,100 Z'/%3E%3C/svg%3E") repeat-x;
+      animation: wave 8s linear infinite;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .wave2 {
+      animation: wave 12s linear infinite reverse;
+      opacity: 0.4;
+      bottom: 10px;
+    }
+
+    @keyframes wave {
+      from { transform: translateX(0); }
+      to { transform: translateX(33.33%); }
+    }
+
+    .back {
+      position: fixed;
+      top: 1.5rem;
+      left: 1.5rem;
+      z-index: 10;
+      color: #5c9fd4;
+      text-decoration: none;
+      font-size: 0.9rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+
+    .back:hover {
+      color: #a8d8f0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 5rem 2rem 12rem;
+    }
+
+    .eyebrow {
+      font-size: 0.8rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #5c9fd4;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #e8eaf6, #5c9fd4, #a8d8f0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+      margin-bottom: 0.5rem;
+    }
+
+    .quote {
+      font-size: 1.1rem;
+      color: #8ab4cc;
+      font-style: italic;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid #163d5e;
+    }
+
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #5c9fd4;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin: 2.5rem 0 1rem;
+    }
+
+    p {
+      color: #b0c8d8;
+      line-height: 1.8;
+      margin-bottom: 1rem;
+    }
+
+    ul {
+      list-style: none;
+      margin-bottom: 1rem;
+    }
+
+    ul li {
+      color: #b0c8d8;
+      line-height: 1.8;
+      padding-left: 1.5rem;
+      position: relative;
+    }
+
+    ul li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: #2e7ab5;
+    }
+
+    .collab {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .person {
+      flex: 1;
+      background: linear-gradient(135deg, #0f1e30, #163d5e44);
+      border: 1px solid #2e7ab5;
+      border-radius: 12px;
+      padding: 1.2rem;
+      text-align: center;
+    }
+
+    .person .avatar {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .person .name {
+      font-weight: 600;
+      color: #a8d8f0;
+      font-size: 0.95rem;
+    }
+
+    .live-link {
+      display: inline-block;
+      margin-top: 2rem;
+      background: linear-gradient(135deg, #163d5e, #1e5f8a);
+      border: 1px solid #2e7ab5;
+      border-radius: 10px;
+      padding: 0.8rem 1.8rem;
+      color: #e8eaf6;
+      text-decoration: none;
+      font-weight: 600;
+      letter-spacing: 1px;
+      transition: box-shadow 0.3s;
+    }
+
+    .live-link:hover {
+      box-shadow: 0 0 30px rgba(92, 159, 212, 0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="stars" id="stars"></div>
+  <div class="ocean"></div>
+  <div class="wave"></div>
+  <div class="wave wave2"></div>
+
+  <a class="back" href="index.html">← Home</a>
+
+  <div class="container">
+    <p class="eyebrow">Est. 2026 — Port Chalmers, NZ</p>
+    <h1>The Port Chalmers<br>Company</h1>
+    <p class="quote">Something completely different.</p>
+
+    <h2>What is this?</h2>
+    <p>A collaborative playground to experiment with GitHub, vibe code together, and figure out how collaboration works in practice — branching, pull requests, pushing and pulling, the lot.</p>
+    <p>No rules, no pressure. Just two people messing around and building things.</p>
+
+    <h2>The crew</h2>
+    <div class="collab">
+      <div class="person">
+        <div class="avatar">🧑‍💻</div>
+        <div class="name">deltarun28</div>
+      </div>
+      <div class="person">
+        <div class="avatar">🧑‍💻</div>
+        <div class="name">HughARVR</div>
+      </div>
+    </div>
+
+    <h2>What's here so far</h2>
+    <ul>
+      <li>A Hello World landing page with a Port Chalmers night-sky theme</li>
+      <li>This about page</li>
+    </ul>
+
+    <h2>How to contribute</h2>
+    <ul>
+      <li>Clone the repo</li>
+      <li>Make your changes</li>
+      <li>Commit and push — or open a pull request if you want feedback first</li>
+    </ul>
+
+    <a class="live-link" href="https://github.com/deltarun28/the_port_chalmers_company" target="_blank">View on GitHub →</a>
+  </div>
+
+  <script>
+    const starsEl = document.getElementById('stars');
+    for (let i = 0; i < 120; i++) {
+      const star = document.createElement('div');
+      star.classList.add('star');
+      const size = Math.random() * 2.5 + 0.5;
+      star.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        top: ${Math.random() * 70}%;
+        left: ${Math.random() * 100}%;
+        animation-delay: ${Math.random() * 3}s;
+        animation-duration: ${2 + Math.random() * 3}s;
+      `;
+      starsEl.appendChild(star);
+    }
+  </script>
+
+</body>
+</html>
