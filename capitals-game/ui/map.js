@@ -259,7 +259,7 @@ function toCanvas(p, R) {
   return { cx: CX + p.x * R, cy: CY - p.y * R };
 }
 
-function createGlobe(container, capitals, onGuess) {
+function createGlobe(container, capitals, onGuess, difficulty) {
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
   wrap.style.display = 'inline-block';
@@ -281,9 +281,8 @@ function createGlobe(container, capitals, onGuess) {
   let zoom = 1;
   let R = BASE_R;
 
-  // hard mode: dots hidden until guessed
   const dots = new Map();
-  capitals.forEach(c => dots.set(c.capital, { lat: c.lat, lng: c.lng, color: '#22c55e', r: 5, visible: false }));
+  capitals.forEach(c => dots.set(c.capital, { lat: c.lat, lng: c.lng, color: '#2e7ab5', r: 3, opacity: 0.7, visible: difficulty.showDots }));
 
   function draw() {
     R = BASE_R * zoom;
@@ -317,7 +316,7 @@ function createGlobe(container, capitals, onGuess) {
       const { cx, cy } = toCanvas(p, R);
       const fade = Math.min(1, (p.z + 0.05) / 0.15);
       ctx.beginPath(); ctx.arc(cx, cy, dot.r, 0, Math.PI * 2);
-      ctx.fillStyle = dot.color; ctx.globalAlpha = fade; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = dot.color; ctx.globalAlpha = dot.opacity * fade; ctx.fill(); ctx.globalAlpha = 1;
     });
   }
 
@@ -357,7 +356,7 @@ function createGlobe(container, capitals, onGuess) {
     const rect = canvas.getBoundingClientRect();
     const deg = 90 / (rect.width * zoom * 0.5);
     rot.lng = dragStart.lng - dx * deg;
-    rot.lat = Math.max(-80, Math.min(80, dragStart.lat - dy * deg));
+    rot.lat = Math.max(-80, Math.min(80, dragStart.lat + dy * deg));
     draw();
   });
   window.addEventListener('mouseup', () => { dragging = false; canvas.style.cursor = 'grab'; });
@@ -367,7 +366,7 @@ function createGlobe(container, capitals, onGuess) {
     const { x, y } = canvasXY(e);
     const hit = findNearest(x, y, 14);
     const rect = canvas.getBoundingClientRect();
-    if (hit && dots.get(hit.capital)?.visible) {
+    if (hit) {
       tooltip.textContent = `${hit.flag} ${hit.capital}, ${hit.country}`;
       tooltip.style.display = 'block';
       tooltip.style.left = `${e.clientX - rect.left + 12}px`;
@@ -396,7 +395,7 @@ function createGlobe(container, capitals, onGuess) {
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged = true;
       const deg = 90 / (rect.width * zoom * 0.5);
       rot.lng = dragStart.lng - dx * deg;
-      rot.lat = Math.max(-80, Math.min(80, dragStart.lat - dy * deg));
+      rot.lat = Math.max(-80, Math.min(80, dragStart.lat + dy * deg));
       draw();
     } else if (e.touches.length === 2 && lastTouches.length === 2) {
       const prev = Math.hypot(lastTouches[0].clientX - lastTouches[1].clientX, lastTouches[0].clientY - lastTouches[1].clientY);
@@ -436,17 +435,23 @@ function createGlobe(container, capitals, onGuess) {
         const dot = dots.get(g.capital);
         if (!dot) return;
         dot.visible = true;
-        dot.color = g.correct ? '#22c55e' : '#f97316';
-        dot.r = 5;
+        dot.color   = g.correct ? '#22c55e' : '#f97316';
+        dot.r       = 5;
+        dot.opacity = 1;
       });
       if (status !== 'playing' && target) {
         const dot = dots.get(target.capital);
-        if (dot) { dot.visible = true; dot.color = '#22c55e'; dot.r = 7; }
+        if (dot) { dot.visible = true; dot.color = '#22c55e'; dot.r = 7; dot.opacity = 1; }
       }
       draw();
     },
     reset() {
-      dots.forEach(dot => { dot.visible = false; dot.color = '#22c55e'; dot.r = 5; });
+      dots.forEach(dot => {
+        dot.visible = difficulty.showDots;
+        dot.color   = '#2e7ab5';
+        dot.r       = 3;
+        dot.opacity = 0.7;
+      });
       zoom = 1; rot.lat = 20; rot.lng = 0;
       draw();
     },
@@ -456,6 +461,6 @@ function createGlobe(container, capitals, onGuess) {
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export function createMap(container, capitals, onGuess, difficulty) {
-  if (difficulty.globeView) return createGlobe(container, capitals, onGuess);
+  if (difficulty.globeView) return createGlobe(container, capitals, onGuess, difficulty);
   return createFlatMap(container, capitals, onGuess, difficulty);
 }
