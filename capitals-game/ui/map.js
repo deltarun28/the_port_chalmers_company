@@ -39,28 +39,48 @@ export function createMap(container, capitals, onGuess) {
   land.setAttribute('stroke-linejoin', 'round');
   svg.appendChild(land);
 
-  for (let lng = -180; lng <= 180; lng += 30) {
+  function gridLine(x1, y1, x2, y2, stroke, width) {
+    const l = document.createElementNS(ns, 'line');
+    l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+    l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+    l.setAttribute('stroke', stroke); l.setAttribute('stroke-width', width);
+    svg.appendChild(l);
+  }
+
+  function gridLabel(x, y, text, anchor = 'start') {
+    const t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', x); t.setAttribute('y', y);
+    t.setAttribute('fill', 'rgba(255,255,255,0.28)');
+    t.setAttribute('font-size', '8');
+    t.setAttribute('font-family', 'sans-serif');
+    t.setAttribute('text-anchor', anchor);
+    t.textContent = text;
+    svg.appendChild(t);
+  }
+
+  // Longitude lines every 45° ≈ 5,000 km along the equator
+  for (let lng = -135; lng <= 135; lng += 45) {
     const { x } = project(0, lng);
-    const line = document.createElementNS(ns, 'line');
-    line.setAttribute('x1', x); line.setAttribute('y1', 0);
-    line.setAttribute('x2', x); line.setAttribute('y2', H);
-    line.setAttribute('stroke', '#1a3050'); line.setAttribute('stroke-width', '0.5');
-    svg.appendChild(line);
+    gridLine(x, 0, x, H, '#1e3a52', '0.5');
+    const km = Math.round(Math.abs(lng) / 360 * 40075 / 1000) * 1000;
+    gridLabel(x + 2, 8, `${km.toLocaleString()} km`);
   }
-  for (let lat = -60; lat <= 80; lat += 30) {
-    const { y } = project(lat, 0);
-    const line = document.createElementNS(ns, 'line');
-    line.setAttribute('x1', 0); line.setAttribute('y1', y);
-    line.setAttribute('x2', W); line.setAttribute('y2', y);
-    line.setAttribute('stroke', '#1a3050'); line.setAttribute('stroke-width', '0.5');
-    svg.appendChild(line);
-  }
+
+  // Latitude lines every 18° ≈ 2,000 km from equator
   const { y: eqY } = project(0, 0);
-  const eq = document.createElementNS(ns, 'line');
-  eq.setAttribute('x1', 0); eq.setAttribute('y1', eqY);
-  eq.setAttribute('x2', W); eq.setAttribute('y2', eqY);
-  eq.setAttribute('stroke', '#2e5070'); eq.setAttribute('stroke-width', '1');
-  svg.appendChild(eq);
+  gridLine(0, eqY, W, eqY, '#2e5070', '1');
+  gridLabel(2, eqY - 3, 'Equator');
+
+  for (let lat = 18; lat <= 72; lat += 18) {
+    const km = `${Math.round(lat / 360 * 40008 / 1000) * 1000}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const { y: yn } = project(lat, 0);
+    gridLine(0, yn, W, yn, '#1e3a52', '0.5');
+    gridLabel(2, yn - 3, `${km} km N`);
+
+    const { y: ys } = project(-lat, 0);
+    gridLine(0, ys, W, ys, '#1e3a52', '0.5');
+    gridLabel(2, ys - 3, `${km} km S`);
+  }
 
   let vb = { x: 0, y: 0, w: W, h: H };
 
