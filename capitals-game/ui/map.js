@@ -236,7 +236,7 @@ function createFlatMap(container, capitals, onGuess, difficulty) {
   };
 }
 
-// ── Globe (hard) ────────────────────────────────────────────────────────────
+// ── Globe ───────────────────────────────────────────────────────────────────
 
 const SIZE = 600;
 const CX = SIZE / 2;
@@ -257,6 +257,26 @@ function ortho(lat, lng, rotLat, rotLng) {
 
 function toCanvas(p, R) {
   return { cx: CX + p.x * R, cy: CY - p.y * R };
+}
+
+const EARTH_R = 6371;
+
+// Points on a small circle (geodesic ring) around (lat0, lng0) at angular radius alphaRad
+function smallCircle(lat0, lng0, alphaRad, steps = 120) {
+  const phi0 = lat0 * Math.PI / 180;
+  const lam0 = lng0 * Math.PI / 180;
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const theta = (i / steps) * 2 * Math.PI;
+    const sinPhi = Math.sin(phi0) * Math.cos(alphaRad) + Math.cos(phi0) * Math.sin(alphaRad) * Math.cos(theta);
+    const phi = Math.asin(Math.max(-1, Math.min(1, sinPhi)));
+    const lam = lam0 + Math.atan2(
+      Math.sin(theta) * Math.sin(alphaRad) * Math.cos(phi0),
+      Math.cos(alphaRad) - Math.sin(phi0) * sinPhi
+    );
+    pts.push([phi * 180 / Math.PI, lam * 180 / Math.PI]);
+  }
+  return pts;
 }
 
 function createGlobe(container, capitals, onGuess, difficulty) {
@@ -280,9 +300,48 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   const rot = { lat: 20, lng: 0 };
   let zoom = 1;
   let R = BASE_R;
+  let currentGuesses = [];
 
   const dots = new Map();
   capitals.forEach(c => dots.set(c.capital, { lat: c.lat, lng: c.lng, color: '#2e7ab5', r: 3, opacity: 0.7, visible: difficulty.showDots }));
+
+  function traceCircle(pts) {
+    let penDown = false;
+    for (const [lat, lng] of pts) {
+      const p = ortho(lat, lng, rot.lat, rot.lng);
+      if (p.z < 0) { penDown = false; continue; }
+      const { cx, cy } = toCanvas(p, R);
+      if (!penDown) { ctx.moveTo(cx, cy); penDown = true; } else ctx.lineTo(cx, cy);
+    }
+  }
+
+  function drawGlobeRings() {
+    currentGuesses.forEach((g, i) => {
+      if (!g.distance) return;
+      const { innerRadius, outerRadius } = calculateRing(g.distance, i + 1);
+      const outerAlpha = Math.min(Math.PI * 0.99, outerRadius / EARTH_R);
+      const innerAlpha = Math.max(0.005, Math.min(Math.PI * 0.99, innerRadius / EARTH_R));
+      const color = RING_COLORS[i % RING_COLORS.length];
+      const outer = smallCircle(g.lat, g.lng, outerAlpha);
+      const inner = smallCircle(g.lat, g.lng, innerAlpha);
+
+      // filled annulus — evenodd punch-through
+      ctx.beginPath();
+      traceCircle(outer);
+      traceCircle(inner);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.18;
+      ctx.fill('evenodd');
+
+      // stroked inner and outer edges
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); traceCircle(outer); ctx.stroke();
+      ctx.beginPath(); traceCircle(inner); ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+  }
 
   function draw() {
     R = BASE_R * zoom;
@@ -304,6 +363,8 @@ function createGlobe(container, capitals, onGuess, difficulty) {
       }
       ctx.closePath(); ctx.fill(); ctx.stroke();
     }
+
+    if (difficulty.showRings) drawGlobeRings();
 
     ctx.restore();
     ctx.beginPath(); ctx.arc(CX, CY, R + 1, 0, Math.PI * 2);
@@ -431,6 +492,7 @@ function createGlobe(container, capitals, onGuess, difficulty) {
 
   return {
     update(guesses, status, target) {
+      currentGuesses = guesses;
       guesses.forEach(g => {
         const dot = dots.get(g.capital);
         if (!dot) return;
@@ -446,6 +508,7 @@ function createGlobe(container, capitals, onGuess, difficulty) {
       draw();
     },
     reset() {
+      currentGuesses = [];
       dots.forEach(dot => {
         dot.visible = difficulty.showDots;
         dot.color   = '#2e7ab5';
