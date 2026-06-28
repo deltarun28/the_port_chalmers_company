@@ -305,6 +305,37 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   const dots = new Map();
   capitals.forEach(c => dots.set(c.capital, { lat: c.lat, lng: c.lng, color: '#2e7ab5', r: 3, opacity: 0.7, visible: difficulty.showDots }));
 
+  function drawGlobeGrid() {
+    // meridians every 45°
+    ctx.strokeStyle = '#1e3a52';
+    ctx.lineWidth = 0.5;
+    for (let lng = -180; lng < 180; lng += 45) {
+      ctx.beginPath();
+      let penDown = false;
+      for (let lat = -90; lat <= 90; lat += 2) {
+        const p = ortho(lat, lng, rot.lat, rot.lng);
+        if (p.z < 0) { penDown = false; continue; }
+        const { cx, cy } = toCanvas(p, R);
+        if (!penDown) { ctx.moveTo(cx, cy); penDown = true; } else ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+    }
+    // parallels every 18°, equator brighter
+    for (let lat = -72; lat <= 72; lat += 18) {
+      ctx.strokeStyle = lat === 0 ? '#2e5070' : '#1e3a52';
+      ctx.lineWidth  = lat === 0 ? 1 : 0.5;
+      ctx.beginPath();
+      let penDown = false;
+      for (let lng = -180; lng <= 180; lng += 2) {
+        const p = ortho(lat, lng, rot.lat, rot.lng);
+        if (p.z < 0) { penDown = false; continue; }
+        const { cx, cy } = toCanvas(p, R);
+        if (!penDown) { ctx.moveTo(cx, cy); penDown = true; } else ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+    }
+  }
+
   function traceCircle(pts) {
     let penDown = false;
     for (const [lat, lng] of pts) {
@@ -356,6 +387,7 @@ function createGlobe(container, capitals, onGuess, difficulty) {
       ctx.closePath(); ctx.fill(); ctx.stroke();
     }
 
+    if (difficulty.showGrid)  drawGlobeGrid();
     if (difficulty.showRings) drawGlobeRings();
 
     ctx.restore();
