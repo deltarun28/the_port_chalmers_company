@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Fetches Natural Earth 110m land polygons (GeoJSON) and projects them
-into our Mercator SVG coordinate space (800x400). Outputs a JS module
-with the combined SVG path string.
+Fetches Natural Earth 110m land polygons (GeoJSON) and outputs:
+  data/coastline.js     — SVG path string (Mercator, 800x400)
+  data/land_polygons.js — raw lat/lng polygon arrays for globe rendering
 """
 import urllib.request
 import json
@@ -30,26 +30,48 @@ def ring_to_path(ring):
     d += 'Z'
     return d
 
+def ring_to_latlng(ring):
+    # Returns [[lat, lng], ...] — drop last point if it duplicates first (closed ring)
+    coords = ring[:-1] if len(ring) > 1 and ring[0] == ring[-1] else ring
+    return [[round(c[1], 4), round(c[0], 4)] for c in coords]
+
 url = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_land.geojson'
 print(f'Fetching {url} ...')
 with urllib.request.urlopen(url, timeout=30) as resp:
     data = json.load(resp)
 
 paths = []
+polygons = []  # list of [[lat,lng], ...]
+
 for feature in data['features']:
     geom = feature['geometry']
     if geom['type'] == 'Polygon':
-        p = ring_to_path(geom['coordinates'][0])
-        if p: paths.append(p)
+        ring = geom['coordinates'][0]
+        p = ring_to_path(ring)
+        if p:
+            paths.append(p)
+            polygons.append(ring_to_latlng(ring))
     elif geom['type'] == 'MultiPolygon':
         for poly in geom['coordinates']:
-            p = ring_to_path(poly[0])
-            if p: paths.append(p)
+            ring = poly[0]
+            p = ring_to_path(ring)
+            if p:
+                paths.append(p)
+                polygons.append(ring_to_latlng(ring))
 
 combined = ' '.join(paths)
-print(f'Generated {len(paths)} land polygons, {len(combined)} chars of path data')
+print(f'Generated {len(paths)} land polygons, {len(combined)} chars of SVG path data')
 
-out = os.path.join(os.path.dirname(__file__), '..', 'data', 'coastline.js')
-with open(out, 'w') as f:
+base = os.path.join(os.path.dirname(__file__), '..', 'data')
+
+out_svg = os.path.join(base, 'coastline.js')
+with open(out_svg, 'w') as f:
     f.write(f'export const COASTLINE = `{combined}`;\n')
-print(f'Written to {out}')
+print(f'Written to {out_svg}')
+
+out_poly = os.path.join(base, 'land_polygons.js')
+with open(out_poly, 'w') as f:
+    f.write('export const LAND_POLYGONS = ')
+    f.write(json.dumps(polygons, separators=(',', ':')))
+    f.write(';\n')
+print(f'Written to {out_poly}')
