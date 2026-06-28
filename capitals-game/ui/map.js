@@ -325,18 +325,9 @@ function createGlobe(container, capitals, onGuess, difficulty) {
       const outer = smallCircle(g.lat, g.lng, outerAlpha);
       const inner = smallCircle(g.lat, g.lng, innerAlpha);
 
-      // filled annulus — evenodd punch-through
-      ctx.beginPath();
-      traceCircle(outer);
-      traceCircle(inner);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.18;
-      ctx.fill('evenodd');
-
-      // stroked inner and outer edges
-      ctx.globalAlpha = 0.5;
       ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.75;
       ctx.beginPath(); traceCircle(outer); ctx.stroke();
       ctx.beginPath(); traceCircle(inner); ctx.stroke();
       ctx.globalAlpha = 1;
@@ -345,6 +336,7 @@ function createGlobe(container, capitals, onGuess, difficulty) {
 
   function draw() {
     R = BASE_R * zoom;
+    ctx.globalAlpha = 1;
     ctx.clearRect(0, 0, SIZE, SIZE);
     ctx.save();
     ctx.beginPath(); ctx.arc(CX, CY, R + 1, 0, Math.PI * 2); ctx.clip();
