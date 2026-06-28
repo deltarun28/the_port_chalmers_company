@@ -76,5 +76,6 @@ export function createInput(container, capitals, onGuess) {
     disable() { input.disabled = true; },
     enable() { input.disabled = false; },
     focus() { input.focus(); },
+    clear() { input.value = ''; list.style.display = 'none'; },
   };
 }

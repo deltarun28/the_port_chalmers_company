@@ -24,12 +24,10 @@ export function createMap(container, capitals, onGuess) {
   svg.style.display = 'block';
   svg.style.userSelect = 'none';
 
-  // background
   const bg = document.createElementNS(ns, 'rect');
   bg.setAttribute('width', W); bg.setAttribute('height', H); bg.setAttribute('fill', '#0a1628');
   svg.appendChild(bg);
 
-  // grid
   for (let lng = -180; lng <= 180; lng += 30) {
     const { x } = project(0, lng);
     const line = document.createElementNS(ns, 'line');
@@ -46,7 +44,6 @@ export function createMap(container, capitals, onGuess) {
     line.setAttribute('stroke', '#1a3050'); line.setAttribute('stroke-width', '0.5');
     svg.appendChild(line);
   }
-  // equator
   const { y: eqY } = project(0, 0);
   const eq = document.createElementNS(ns, 'line');
   eq.setAttribute('x1', 0); eq.setAttribute('y1', eqY);
@@ -54,16 +51,16 @@ export function createMap(container, capitals, onGuess) {
   eq.setAttribute('stroke', '#2e5070'); eq.setAttribute('stroke-width', '1');
   svg.appendChild(eq);
 
-  // viewBox state
   let vb = { x: 0, y: 0, w: W, h: H };
+
+  // dots stored as { g, circle, baseR } so we can mutate baseR without dataset
+  const dots = new Map();
 
   function applyViewBox() {
     svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
-    // scale dots so they stay visually consistent
     const scale = vb.w / W;
-    dots.forEach(({ circle }) => {
-      const base = parseFloat(circle.dataset.baseR || '3');
-      circle.setAttribute('r', base * scale);
+    dots.forEach(dot => {
+      dot.circle.setAttribute('r', dot.baseR * scale);
     });
   }
 
@@ -74,7 +71,6 @@ export function createMap(container, capitals, onGuess) {
     vb.y = Math.max(0, Math.min(H - vb.h, vb.y));
   }
 
-  // zoom on wheel
   svg.addEventListener('wheel', e => {
     e.preventDefault();
     const rect = svg.getBoundingClientRect();
@@ -91,7 +87,6 @@ export function createMap(container, capitals, onGuess) {
     applyViewBox();
   }, { passive: false });
 
-  // pan on drag
   let dragging = false;
   let hasDragged = false;
   let dragStart = null;
@@ -120,7 +115,6 @@ export function createMap(container, capitals, onGuess) {
     svg.style.cursor = 'grab';
   });
 
-  // touch pan + pinch zoom
   let lastTouches = null;
   svg.addEventListener('touchstart', e => {
     e.preventDefault();
@@ -159,9 +153,6 @@ export function createMap(container, capitals, onGuess) {
     lastTouches = e.touches;
   }, { passive: false });
 
-  // dots
-  const dots = new Map();
-
   capitals.forEach(capital => {
     const { x, y } = project(capital.lat, capital.lng);
     const g = document.createElementNS(ns, 'g');
@@ -172,7 +163,6 @@ export function createMap(container, capitals, onGuess) {
     circle.setAttribute('r', '3');
     circle.setAttribute('fill', '#2e7ab5');
     circle.setAttribute('opacity', '0.7');
-    circle.dataset.baseR = '3';
 
     const title = document.createElementNS(ns, 'title');
     title.textContent = `${capital.flag} ${capital.capital}, ${capital.country}`;
@@ -183,12 +173,11 @@ export function createMap(container, capitals, onGuess) {
       onGuess(capital);
     });
     svg.appendChild(g);
-    dots.set(capital.capital, { g, circle });
+    dots.set(capital.capital, { g, circle, baseR: 3 });
   });
 
   wrap.appendChild(svg);
 
-  // zoom buttons
   const controls = document.createElement('div');
   controls.className = 'map-controls';
   controls.innerHTML = `
@@ -221,7 +210,7 @@ export function createMap(container, capitals, onGuess) {
         const dot = dots.get(g.capital);
         if (!dot) return;
         dot.circle.setAttribute('fill', g.correct ? '#22c55e' : '#f97316');
-        dot.circle.dataset.baseR = '5';
+        dot.baseR = 5;
         dot.circle.setAttribute('r', 5 * scale);
         dot.circle.setAttribute('opacity', '1');
       });
@@ -229,18 +218,19 @@ export function createMap(container, capitals, onGuess) {
         const dot = dots.get(target.capital);
         if (dot) {
           dot.circle.setAttribute('fill', '#22c55e');
-          dot.circle.dataset.baseR = '7';
+          dot.baseR = 7;
           dot.circle.setAttribute('r', 7 * scale);
           dot.circle.setAttribute('opacity', '1');
         }
       }
     },
     reset() {
-      dots.forEach(({ circle }) => {
-        circle.setAttribute('fill', '#2e7ab5');
-        circle.setAttribute('opacity', '0.7');
-        circle.dataset.baseR = '3';
-        circle.setAttribute('r', 3 * (vb.w / W));
+      const scale = vb.w / W;
+      dots.forEach(dot => {
+        dot.baseR = 3;
+        dot.circle.setAttribute('fill', '#2e7ab5');
+        dot.circle.setAttribute('opacity', '0.7');
+        dot.circle.setAttribute('r', 3 * scale);
       });
     },
   };
