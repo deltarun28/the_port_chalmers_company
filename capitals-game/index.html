@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Capitals Game</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0e1a;
+      color: #e8eaf6;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      padding: 1.5rem 1rem 0.5rem;
+      border-bottom: 1px solid #163d5e;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #e8eaf6, #5c9fd4, #a8d8f0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: #5c9fd4;
+      font-size: 0.85rem;
+      margin-top: 0.3rem;
+    }
+
+    .back-link {
+      position: absolute;
+      top: 1.2rem;
+      left: 1rem;
+      color: #5c9fd4;
+      text-decoration: none;
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .back-link:hover { color: #a8d8f0; }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1rem;
+    }
+
+    .left-col { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* Input */
+    .input-wrap { position: relative; }
+
+    .input-wrap input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: #0f1e30;
+      border: 1px solid #2e7ab5;
+      border-radius: 10px;
+      color: #e8eaf6;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .input-wrap input:focus { border-color: #5c9fd4; }
+    .input-wrap input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #suggestions {
+      position: absolute;
+      z-index: 10;
+      width: 100%;
+      background: #0f1e30;
+      border: 1px solid #2e7ab5;
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      list-style: none;
+      display: none;
+    }
+
+    #suggestions li {
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+
+    #suggestions li:hover, #suggestions li.active {
+      background: #163d5e;
+    }
+
+    /* Map */
+    .world-map {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #163d5e;
+    }
+
+    .capital-dot:hover circle { r: 5; opacity: 1; fill: #a8d8f0; }
+
+    /* Results */
+    .guess-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 0.8rem;
+      background: #0f1e30;
+      border: 1px solid #163d5e;
+      border-radius: 8px;
+      min-height: 52px;
+    }
+
+    .guess-card.empty { opacity: 0.4; }
+    .guess-card.correct { border-color: #22c55e; }
+
+    .slot-num {
+      width: 1.4rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #5c9fd4;
+      flex-shrink: 0;
+    }
+
+    .flag { font-size: 1.5rem; flex-shrink: 0; }
+
+    .guess-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .guess-info strong { font-size: 0.95rem; }
+    .country-name { font-size: 0.75rem; color: #8ab4cc; }
+
+    .distance-block {
+      text-align: right;
+      flex-shrink: 0;
+      width: 110px;
+    }
+
+    .dist-label { font-size: 0.75rem; color: #a8d8f0; }
+
+    .heat-bar-bg {
+      margin-top: 4px;
+      height: 4px;
+      background: #163d5e;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .heat-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+
+    .game-over-msg {
+      text-align: center;
+      padding: 0.8rem;
+      background: #1a0f0f;
+      border: 1px solid #7f1d1d;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #fca5a5;
+    }
+
+    /* Share */
+    .share-card {
+      background: #0f1e30;
+      border: 1px solid #2e7ab5;
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    .share-text {
+      font-family: monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: #a8d8f0;
+      margin-bottom: 0.75rem;
+      white-space: pre;
+    }
+
+    #copy-btn {
+      width: 100%;
+      padding: 0.5rem;
+      background: linear-gradient(135deg, #163d5e, #1e5f8a);
+      border: 1px solid #2e7ab5;
+      border-radius: 8px;
+      color: #e8eaf6;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    #copy-btn:hover { background: #1e5f8a; }
+
+    /* Loading */
+    #loading {
+      text-align: center;
+      padding: 4rem;
+      color: #5c9fd4;
+      font-size: 1.1rem;
+      grid-column: 1 / -1;
+    }
+
+    .won-banner {
+      text-align: center;
+      padding: 0.6rem;
+      background: #052e16;
+      border: 1px solid #22c55e;
+      border-radius: 8px;
+      color: #86efac;
+      font-weight: 600;
+    }
+
+    @media (max-width: 620px) {
+      main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<a class="back-link" href="../index.html">← Home</a>
+
+<header>
+  <h1>🌍 Capitals Game</h1>
+  <p id="subtitle">Guess today's mystery world capital — 6 attempts</p>
+</header>
+
+<main id="main">
+  <div id="loading">Loading…</div>
+</main>
+
+<script type="module">
+  import { getDailyTarget } from './lib/daily_target.js';
+  import { validate } from './lib/validator.js';
+  import { createGame } from './lib/game.js';
+  import { createInput } from './ui/input.js';
+  import { createMap } from './ui/map.js';
+  import { renderResults } from './ui/results.js';
+  import { share } from './ui/share.js';
+
+  const main = document.getElementById('main');
+
+  const [capitals, distances] = await Promise.all([
+    fetch('./data/capitals.json').then(r => r.json()),
+    fetch('./data/distances.json').then(r => r.json()),
+  ]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const target = getDailyTarget(capitals, today);
+  const game = createGame(target, distances);
+
+  main.innerHTML = `
+    <div class="left-col">
+      <div id="input-container"></div>
+      <div id="map-container"></div>
+    </div>
+    <div id="right-col">
+      <div id="results-container"></div>
+      <div id="share-container"></div>
+    </div>
+  `;
+
+  const inputEl = createInput(
+    document.getElementById('input-container'),
+    capitals,
+    handleGuess
+  );
+
+  const mapEl = createMap(
+    document.getElementById('map-container'),
+    capitals,
+    handleGuess
+  );
+
+  renderResults(
+    document.getElementById('results-container'),
+    [], 'playing', target, 6
+  );
+
+  let guessedCapitals = new Set();
+
+  function handleGuess(capital) {
+    const state = game.getState();
+    if (state.status !== 'playing') return;
+    if (guessedCapitals.has(capital.capital)) return;
+    guessedCapitals.add(capital.capital);
+
+    const newState = game.submitGuess(capital);
+
+    mapEl.update(newState.guesses, newState.status, newState.target);
+    renderResults(
+      document.getElementById('results-container'),
+      newState.guesses, newState.status, newState.target, 6
+    );
+
+    if (newState.status === 'won') {
+      document.getElementById('results-container').insertAdjacentHTML(
+        'beforeend',
+        `<div class="won-banner">🎉 ${newState.guesses.length === 1 ? 'First guess!' : `Got it in ${newState.guesses.length}!`}</div>`
+      );
+      inputEl.disable();
+      share(document.getElementById('share-container'), newState.guesses, 'won', newState.target);
+    } else if (newState.status === 'lost') {
+      inputEl.disable();
+      share(document.getElementById('share-container'), newState.guesses, 'lost', newState.target);
+    }
+  }
+
+  inputEl.focus();
+</script>
+
+</body>
+</html>
