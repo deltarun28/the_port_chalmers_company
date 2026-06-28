@@ -67,11 +67,14 @@ export function createMap(container, capitals, onGuess) {
   // dots stored as { g, circle, baseR } so we can mutate baseR without dataset
   const dots = new Map();
 
+  const HIT_R = 10;
+
   function applyViewBox() {
     svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
     const scale = vb.w / W;
     dots.forEach(dot => {
       dot.circle.setAttribute('r', dot.baseR * scale);
+      dot.hit.setAttribute('r', HIT_R * scale);
     });
   }
 
@@ -175,16 +178,21 @@ export function createMap(container, capitals, onGuess) {
     circle.setAttribute('fill', '#2e7ab5');
     circle.setAttribute('opacity', '0.7');
 
+    const hit = document.createElementNS(ns, 'circle');
+    hit.setAttribute('cx', x); hit.setAttribute('cy', y);
+    hit.setAttribute('r', HIT_R);
+    hit.setAttribute('fill', 'transparent');
+
     const title = document.createElementNS(ns, 'title');
     title.textContent = `${capital.flag} ${capital.capital}, ${capital.country}`;
 
-    g.appendChild(circle); g.appendChild(title);
+    g.appendChild(hit); g.appendChild(circle); g.appendChild(title);
     g.addEventListener('click', () => {
       if (hasDragged) return;
       onGuess(capital);
     });
     svg.appendChild(g);
-    dots.set(capital.capital, { g, circle, baseR: 3 });
+    dots.set(capital.capital, { g, circle, hit, baseR: 3 });
   });
 
   wrap.appendChild(svg);
@@ -242,6 +250,7 @@ export function createMap(container, capitals, onGuess) {
         dot.circle.setAttribute('fill', '#2e7ab5');
         dot.circle.setAttribute('opacity', '0.7');
         dot.circle.setAttribute('r', 3 * scale);
+        dot.hit.setAttribute('r', HIT_R * scale);
       });
     },
   };
