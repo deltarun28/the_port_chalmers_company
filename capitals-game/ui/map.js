@@ -356,7 +356,7 @@ function createGlobe(container, capitals, onGuess) {
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDragged = true;
     const rect = canvas.getBoundingClientRect();
     const deg = 90 / (rect.width * zoom * 0.5);
-    rot.lng = dragStart.lng + dx * deg;
+    rot.lng = dragStart.lng - dx * deg;
     rot.lat = Math.max(-80, Math.min(80, dragStart.lat - dy * deg));
     draw();
   });
@@ -395,7 +395,7 @@ function createGlobe(container, capitals, onGuess) {
       const dx = e.touches[0].clientX - dragStart.x, dy = e.touches[0].clientY - dragStart.y;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged = true;
       const deg = 90 / (rect.width * zoom * 0.5);
-      rot.lng = dragStart.lng + dx * deg;
+      rot.lng = dragStart.lng - dx * deg;
       rot.lat = Math.max(-80, Math.min(80, dragStart.lat - dy * deg));
       draw();
     } else if (e.touches.length === 2 && lastTouches.length === 2) {
