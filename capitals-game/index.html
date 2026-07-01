@@ -366,6 +366,24 @@
 </main>
 
 <script type="module">
+  // ── Wiring layer ─────────────────────────────────────────────────────────────
+  // index.html is the only file that imports from multiple layers.
+  // It owns: session/round lifecycle, mode (daily/random), difficulty selection,
+  // and routing events between the lib/ logic modules and the ui/ display modules.
+  // No game logic lives here — it delegates entirely to the imported modules.
+  //
+  // Session structure:
+  //   A session = 5 rounds.  Each round has one mystery capital.
+  //   Session state: targets[], currentRound (0–4), roundResults[]
+  //   Round state: game object (from game.js), guessedCapitals Set
+  //
+  // Data flow per guess:
+  //   input.js or map.js  →  onGuess(capital)
+  //   →  game.submitGuess(capital)  →  newState
+  //   →  map.update(newState) + renderResults(newState)
+  //   →  if done: endRound() → calcScore() → push to roundResults[]
+  //   →  if last round: endSession() → share()
+
   import { getDailyTargets } from './lib/daily_target.js';
   import { createGame } from './lib/game.js';
   import { createInput } from './ui/input.js';
@@ -376,25 +394,31 @@
   import { createDifficultyPicker } from './ui/difficulty_picker.js';
   import { calcScore } from './lib/scoring.js';
 
-  const ROUNDS = 5;
+  const ROUNDS = 5; // capitals per session
   const main = document.getElementById('main');
   const dailyBtn = document.getElementById('daily-btn');
   const randomBtn = document.getElementById('random-btn');
   const newGameBtn = document.getElementById('new-game-btn');
 
-  // Load capitals first (30 KB) so the globe appears immediately.
-  // Distances (1.2 MB) loads in the background; the input is enabled once ready.
+  // Load capitals first (30 KB) — enough to build the globe and pick targets.
+  // Distances (1.2 MB) loads in the background; startSession() shows a skeleton
+  // and startRound() fires only once the promise resolves.
   const capitals = await fetch('./data/capitals.json').then(r => r.json());
   const distancesPromise = fetch('./data/distances.json').then(r => r.json());
-  let distances = null;
+  let distances = null; // set when distancesPromise resolves
 
   let mode = 'daily';
   let difficultyKey = localStorage.getItem('difficulty') || 'moderate';
   let inputCtrl, mapCtrl;
-  let targets = [];
-  let currentRound = 0;
-  let roundResults = [];
-  let game, guessedCapitals;
+
+  // Session state — reset at the start of every session
+  let targets = [];      // 5 capital objects chosen for this session
+  let currentRound = 0;  // index into targets[] (0–4)
+  let roundResults = []; // [{ target, guesses[], score, won }, …] — one per completed round
+
+  // Round state — reset at the start of every round
+  let game;              // current game.js instance
+  let guessedCapitals;   // Set of capital names already submitted this round (prevents duplicates)
 
   main.innerHTML = `
     <div class="left-col">

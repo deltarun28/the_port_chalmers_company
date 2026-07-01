@@ -1,3 +1,14 @@
+// Autocomplete text input — the player's primary way to submit a guess.
+// Filters capitals.json as the user types and shows up to 6 suggestions.
+// Committing a suggestion (click or Enter) calls onGuess(capitalObject) and
+// clears the field.  This module does not know what the target capital is.
+//
+// The returned control object (enable/disable/focus/clear) lets index.html
+// disable the field while distances.json is loading and between rounds.
+//
+// Keyboard nav: ↑↓ move through suggestions, Enter commits, Escape dismisses.
+// Matching is substring across capital name, country name, and aliases.
+
 export function createInput(container, capitals, onGuess) {
   container.innerHTML = `
     <div class="input-wrap">
@@ -28,6 +39,7 @@ export function createInput(container, capitals, onGuess) {
     activeIndex = -1;
   }
 
+  // Clear the field + dropdown and fire the guess event upstream
   function commit(capital) {
     input.value = '';
     list.innerHTML = '';
@@ -36,8 +48,7 @@ export function createInput(container, capitals, onGuess) {
   }
 
   input.addEventListener('input', () => {
-    const matches = getSuggestions(input.value);
-    renderSuggestions(matches);
+    renderSuggestions(getSuggestions(input.value));
   });
 
   input.addEventListener('keydown', e => {
@@ -68,14 +79,15 @@ export function createInput(container, capitals, onGuess) {
     if (matches[i]) commit(matches[i]);
   });
 
+  // Dismiss dropdown when the player clicks anywhere outside the widget
   document.addEventListener('click', e => {
     if (!container.contains(e.target)) list.style.display = 'none';
   });
 
   return {
     disable() { input.disabled = true; },
-    enable() { input.disabled = false; },
-    focus() { input.focus(); },
-    clear() { input.value = ''; list.style.display = 'none'; },
+    enable()  { input.disabled = false; },
+    focus()   { input.focus(); },
+    clear()   { input.value = ''; list.style.display = 'none'; },
   };
 }

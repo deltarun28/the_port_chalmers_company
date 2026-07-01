@@ -1,13 +1,39 @@
+// ── Globe renderer (and legacy flat SVG map, currently unused) ───────────────
+//
+// Public API (exported at the bottom):
+//   createMap(container, capitals, onGuess, difficulty) → { update, reset }
+//
+//   All difficulty modes currently have globeView:true, so createGlobe() is
+//   always called.  createFlatMap() is dead code but kept for reference.
+//
+//   Callbacks:
+//     onGuess(capitalObject) — fired when the player clicks/taps a dot
+//   Methods on the returned object:
+//     update(guesses, status, target) — recolours dots and redraws rings
+//     reset()                         — restores all dots to starting state
+//
+// Globe coordinate systems:
+//   [lat, lng]  — geographic degrees (source: data/land_polygons.js, capitals[])
+//   {x, y, z}  — orthographic unit-sphere (ortho() output)
+//                 z > 0 → front hemisphere (draw it)
+//                 z < 0 → back hemisphere  (skip it)
+//   {cx, cy}    — canvas pixels (toCanvas() output; origin = globe centre CX,CY)
+//
+// Data sources imported at module level:
+//   LAND_POLYGONS — rings of [lat,lng] at 50 m Natural Earth resolution
+//   LAKE_POLYGONS — same format; drawn over land to "punch out" water bodies
+//   calculateRing — converts distance + guess# → inner/outer km radii
+
 import { LAND_POLYGONS, LAKE_POLYGONS } from '../data/land_polygons.js';
 import { calculateRing } from '../lib/ring_calculator.js';
 
-// ── Flat SVG map (easy / moderate) ─────────────────────────────────────────
+// ── Flat SVG map (dead code — all modes use globe) ───────────────────────────
 
 const W = 800;
 const H = 400;
 const MAX_ZOOM = 12;
 const HIT_R = 10;
-const KM_PER_PX = 40075 / W;
+const KM_PER_PX = 40075 / W; // earth circumference / map width
 const RING_COLORS = ['#3b82f6', '#f97316', '#a855f7', '#ec4899', '#eab308', '#10b981'];
 
 function project(lat, lng) {
@@ -43,7 +69,7 @@ function createFlatMap(container, capitals, onGuess, difficulty) {
   svg.appendChild(bg);
 
   const land = document.createElementNS(ns, 'path');
-  land.setAttribute('d', '');
+  land.setAttribute('d', ''); // COASTLINE import removed; flat map is unused
   land.setAttribute('fill', '#111827');
   land.setAttribute('stroke', 'rgba(255,255,255,0.25)');
   land.setAttribute('stroke-width', '0.5');
@@ -235,15 +261,21 @@ function createFlatMap(container, capitals, onGuess, difficulty) {
   };
 }
 
-// ── Globe ───────────────────────────────────────────────────────────────────
+// ── Globe ────────────────────────────────────────────────────────────────────
 
-const SIZE = 600;
-const CX = SIZE / 2;
-const CY = SIZE / 2;
-const BASE_R = 275;
+const SIZE = 600;        // canvas pixel dimensions (square)
+const CX = SIZE / 2;    // canvas X centre
+const CY = SIZE / 2;    // canvas Y centre
+const BASE_R = 275;     // globe radius in pixels at zoom=1
 const GLOBE_MIN = 1;
 const GLOBE_MAX = 8;
+const EARTH_R = 6371;   // km, used to convert ring radii to angular radians
 
+// Standard orthographic projection centred at (rotLat, rotLng).
+// Returns unit-sphere {x, y, z}.
+//   z > 0 → front hemisphere (visible to the camera)
+//   z < 0 → back hemisphere  (behind the globe, skip)
+//   x points screen-right, y points screen-up (toCanvas flips y for canvas coords)
 function ortho(lat, lng, rotLat, rotLng) {
   const phi  = lat  * Math.PI / 180;
   const lam  = (lng - rotLng) * Math.PI / 180;
@@ -254,13 +286,16 @@ function ortho(lat, lng, rotLat, rotLng) {
   return { x: cp * sl, y: c0 * sp - s0 * cp * cl, z: s0 * sp + c0 * cp * cl };
 }
 
+// Converts a unit-sphere point to canvas pixel coordinates.
+// CY - p.y*R because the canvas Y axis points down, geographic Y points up.
 function toCanvas(p, R) {
   return { cx: CX + p.x * R, cy: CY - p.y * R };
 }
 
-const EARTH_R = 6371;
-
-// Points on a small circle (geodesic ring) around (lat0, lng0) at angular radius alphaRad
+// Computes all points on a geodesic small circle (constant angular distance
+// alphaRad from the centre point lat0, lng0) stepping around 0→2π in `steps`
+// increments.  Used by drawGlobeRings() to draw the inner and outer arcs of
+// each distance ring in easy mode.
 function smallCircle(lat0, lng0, alphaRad, steps = 120) {
   const phi0 = lat0 * Math.PI / 180;
   const lam0 = lng0 * Math.PI / 180;
@@ -296,16 +331,22 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   wrap.appendChild(tooltip);
 
   const ctx = canvas.getContext('2d');
-  const rot = { lat: 20, lng: 0 };
+  const rot = { lat: 20, lng: 0 }; // initial view: slightly tilted north
   let zoom = 1;
-  let R = BASE_R;
-  let currentGuesses = [];
+  let R = BASE_R;          // effective radius in pixels = BASE_R * zoom
+  let currentGuesses = []; // kept so draw() can re-render rings on every frame
 
+  // One entry per capital: { lat, lng, color, r, opacity, visible }
+  // visible=false on hard mode until the player guesses or round ends
   const dots = new Map();
-  capitals.forEach(c => dots.set(c.capital, { lat: c.lat, lng: c.lng, color: '#2e7ab5', r: 3, opacity: 0.7, visible: difficulty.showDots }));
+  capitals.forEach(c => dots.set(c.capital, {
+    lat: c.lat, lng: c.lng,
+    color: '#2e7ab5', r: 3, opacity: 0.7,
+    visible: difficulty.showDots,
+  }));
 
   function drawGlobeGrid() {
-    // meridians every 18° ≈ 2,000 km at the equator
+    // Meridians and parallels every 18° ≈ 2,000 km at the equator
     ctx.strokeStyle = '#1e3a52';
     ctx.lineWidth = 0.5;
     for (let lng = -180; lng < 180; lng += 18) {
@@ -319,7 +360,7 @@ function createGlobe(container, capitals, onGuess, difficulty) {
       }
       ctx.stroke();
     }
-    // parallels every 18°, equator brighter
+    // Parallels — equator drawn brighter as a visual reference
     for (let lat = -72; lat <= 72; lat += 18) {
       ctx.strokeStyle = lat === 0 ? '#2e5070' : '#1e3a52';
       ctx.lineWidth  = lat === 0 ? 1 : 0.5;
@@ -335,6 +376,8 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     }
   }
 
+  // Traces a sequence of [lat, lng] points, lifting the pen at the horizon
+  // (p.z < 0) so segments don't wrap across the back of the globe.
   function traceCircle(pts) {
     let penDown = false;
     for (const [lat, lng] of pts) {
@@ -346,9 +389,15 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   }
 
   function drawGlobeRings() {
+    // Rings are STROKE-ONLY (no fill).  A filled annulus with evenodd rule
+    // becomes semi-transparent when the outer arc clips at the horizon:
+    // the back-hemisphere portion of the outer circle is never drawn, leaving
+    // an unclosed shape whose evenodd fill floods the visible hemisphere.
+    // Stroke-only arcs are immune to this artifact.
     currentGuesses.forEach((g, i) => {
       if (!g.distance) return;
       const { innerRadius, outerRadius } = calculateRing(g.distance, i + 1);
+      // Convert km radii to angular radians on the sphere surface
       const outerAlpha = Math.min(Math.PI * 0.99, outerRadius / EARTH_R);
       const innerAlpha = Math.max(0.005, Math.min(Math.PI * 0.99, innerRadius / EARTH_R));
       const color = RING_COLORS[i % RING_COLORS.length];
@@ -366,13 +415,19 @@ function createGlobe(container, capitals, onGuess, difficulty) {
 
   function draw() {
     R = BASE_R * zoom;
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 1; // guard: ring drawing modifies globalAlpha; reset before each frame
     ctx.clearRect(0, 0, SIZE, SIZE);
+
+    // Clip everything to the circular globe area
     ctx.save();
     ctx.beginPath(); ctx.arc(CX, CY, R + 1, 0, Math.PI * 2); ctx.clip();
 
+    // Ocean base colour
     ctx.fillStyle = '#0a0e1a'; ctx.fillRect(0, 0, SIZE, SIZE);
 
+    // Land polygons — each ring is a closed polygon, rendered fill + stroke
+    // -0.05 threshold (not 0): accept points just past the limb so edges near
+    // the horizon don't get clipped mid-stroke by the canvas circular clip.
     ctx.fillStyle = '#111827'; ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 0.7;
     for (const ring of LAND_POLYGONS) {
       ctx.beginPath();
@@ -386,7 +441,8 @@ function createGlobe(container, capitals, onGuess, difficulty) {
       ctx.closePath(); ctx.fill(); ctx.stroke();
     }
 
-    // lakes drawn over land as ocean colour
+    // Lakes: drawn over land in ocean colour to punch water bodies out of land,
+    // then given a faint blue stroke so shorelines like the Caspian Sea read as water.
     ctx.fillStyle = '#0a0e1a';
     ctx.strokeStyle = 'rgba(80,150,220,0.55)';
     ctx.lineWidth = 0.7;
@@ -405,31 +461,41 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     if (difficulty.showGrid)  drawGlobeGrid();
     if (difficulty.showRings) drawGlobeRings();
 
-    ctx.restore();
+    ctx.restore(); // end circular clip
+
+    // Globe rim stroke (drawn outside the clip so it sits on top of all content)
     ctx.beginPath(); ctx.arc(CX, CY, R + 1, 0, Math.PI * 2);
     ctx.strokeStyle = '#163d5e'; ctx.lineWidth = 1.5; ctx.stroke();
 
+    // Capital dots — fade near the horizon so they don't pop on/off sharply
     dots.forEach(dot => {
       if (!dot.visible) return;
       const p = ortho(dot.lat, dot.lng, rot.lat, rot.lng);
       if (p.z < 0) return;
       const { cx, cy } = toCanvas(p, R);
+      // fade: 0 at the very limb (z=−0.05), full opacity once z ≥ 0.10
       const fade = Math.min(1, (p.z + 0.05) / 0.15);
       ctx.beginPath(); ctx.arc(cx, cy, dot.r, 0, Math.PI * 2);
       ctx.fillStyle = dot.color; ctx.globalAlpha = dot.opacity * fade; ctx.fill(); ctx.globalAlpha = 1;
     });
   }
 
+  // Convert a mouse/touch event position to canvas pixel coordinates,
+  // accounting for the canvas being CSS-scaled to fill its container.
   function canvasXY(e) {
     const rect = canvas.getBoundingClientRect();
-    return { x: (e.clientX - rect.left) * (SIZE / rect.width), y: (e.clientY - rect.top) * (SIZE / rect.height) };
+    return {
+      x: (e.clientX - rect.left) * (SIZE / rect.width),
+      y: (e.clientY - rect.top)  * (SIZE / rect.height),
+    };
   }
 
+  // Returns the nearest capital within hitPx pixels, or null.
   function findNearest(cx, cy, hitPx) {
     let best = null, bestD2 = hitPx * hitPx;
     for (const cap of capitals) {
       const p = ortho(cap.lat, cap.lng, rot.lat, rot.lng);
-      if (p.z < 0) continue;
+      if (p.z < 0) continue; // back hemisphere — not clickable
       const { cx: px, cy: py } = toCanvas(p, R);
       const d2 = (px - cx) ** 2 + (py - cy) ** 2;
       if (d2 < bestD2) { bestD2 = d2; best = cap; }
@@ -444,21 +510,30 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   }, { passive: false });
 
   let dragging = false, hasDragged = false, dragStart = null;
+
   canvas.addEventListener('mousedown', e => {
     dragging = true; hasDragged = false;
     dragStart = { x: e.clientX, y: e.clientY, lat: rot.lat, lng: rot.lng };
     canvas.style.cursor = 'grabbing';
   });
+
   window.addEventListener('mousemove', e => {
     if (!dragging) return;
     const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDragged = true;
     const rect = canvas.getBoundingClientRect();
+    // deg: pixel delta → degrees of rotation.
+    // 90 / (half the globe diameter in px) keeps angular speed in proportion;
+    // dividing by zoom keeps it constant regardless of magnification level.
     const deg = 90 / (rect.width * zoom * 0.5);
+    // Sign conventions: drag right → lng decreases (globe turns right)
+    //                   drag down  → lat increases (globe tilts south)
+    // Both match the feel of spinning a physical sphere.
     rot.lng = dragStart.lng - dx * deg;
     rot.lat = Math.max(-80, Math.min(80, dragStart.lat + dy * deg));
     draw();
   });
+
   window.addEventListener('mouseup', () => { dragging = false; canvas.style.cursor = 'grab'; });
 
   canvas.addEventListener('mousemove', e => {
@@ -476,17 +551,19 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
 
   canvas.addEventListener('click', e => {
-    if (hasDragged) return;
+    if (hasDragged) return; // drag release — not a click
     const { x, y } = canvasXY(e);
     const hit = findNearest(x, y, 18);
     if (hit) onGuess(hit);
   });
 
+  // Touch handlers mirror mouse: single-finger drag rotates, two-finger pinch zooms
   let lastTouches = null;
   canvas.addEventListener('touchstart', e => {
     e.preventDefault(); hasDragged = false; lastTouches = e.touches;
     if (e.touches.length === 1) dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, lat: rot.lat, lng: rot.lng };
   }, { passive: false });
+
   canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
@@ -505,6 +582,7 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     }
     lastTouches = e.touches;
   }, { passive: false });
+
   canvas.addEventListener('touchend', e => {
     if (!hasDragged && e.changedTouches.length === 1) {
       const rect = canvas.getBoundingClientRect();
@@ -527,9 +605,11 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   });
   wrap.appendChild(controls);
 
-  draw();
+  draw(); // initial render
 
   return {
+    // Called by index.html after every guess and on round end.
+    // Recolours guessed dots and reveals the target dot when the round ends.
     update(guesses, status, target) {
       currentGuesses = guesses;
       guesses.forEach(g => {
@@ -541,15 +621,19 @@ function createGlobe(container, capitals, onGuess, difficulty) {
         dot.opacity = 1;
       });
       if (status !== 'playing' && target) {
+        // Always show and highlight the target when the round is over
         const dot = dots.get(target.capital);
         if (dot) { dot.visible = true; dot.color = '#22c55e'; dot.r = 7; dot.opacity = 1; }
       }
       draw();
     },
+
+    // Called by index.html at the start of each new round.
+    // Clears guesses, restores all dots to their initial state, and recentres the view.
     reset() {
       currentGuesses = [];
       dots.forEach(dot => {
-        dot.visible = difficulty.showDots;
+        dot.visible = difficulty.showDots; // hard mode: dots hidden until guessed
         dot.color   = '#2e7ab5';
         dot.r       = 3;
         dot.opacity = 0.7;
@@ -560,8 +644,11 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   };
 }
 
-// ── Public API ──────────────────────────────────────────────────────────────
+// ── Public API ───────────────────────────────────────────────────────────────
 
+// Entry point called by index.html.  Delegates to the globe renderer for all
+// current difficulty levels (globeView is always true).  The flat map branch
+// is retained for completeness but is unreachable with current config.
 export function createMap(container, capitals, onGuess, difficulty) {
   if (difficulty.globeView) return createGlobe(container, capitals, onGuess, difficulty);
   return createFlatMap(container, capitals, onGuess, difficulty);
