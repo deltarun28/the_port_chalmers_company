@@ -1,4 +1,3 @@
-import { COASTLINE } from '../data/coastline.js';
 import { LAND_POLYGONS, LAKE_POLYGONS } from '../data/land_polygons.js';
 import { calculateRing } from '../lib/ring_calculator.js';
 
@@ -44,7 +43,7 @@ function createFlatMap(container, capitals, onGuess, difficulty) {
   svg.appendChild(bg);
 
   const land = document.createElementNS(ns, 'path');
-  land.setAttribute('d', COASTLINE);
+  land.setAttribute('d', '');
   land.setAttribute('fill', '#111827');
   land.setAttribute('stroke', 'rgba(255,255,255,0.25)');
   land.setAttribute('stroke-width', '0.5');
