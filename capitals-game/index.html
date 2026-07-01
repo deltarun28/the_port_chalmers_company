@@ -488,6 +488,9 @@
   const newGameBtn = document.getElementById('new-game-btn');
   const themeBtn = document.getElementById('theme-btn');
 
+  // Declared early so applyTheme() (called before await) can reference them safely
+  let inputCtrl, mapCtrl;
+
   // ── Theme ─────────────────────────────────────────────────────────────────
   // isDark drives a .light-theme class on <body>.  The CSS variables in
   // :root vs body.light-theme handle all UI colours; the globe canvas reads
@@ -521,7 +524,6 @@
 
   let mode = 'daily';
   let difficultyKey = localStorage.getItem('difficulty') || 'moderate';
-  let inputCtrl, mapCtrl;
 
   // Session state — reset at the start of every session
   let targets = [];      // 5 capital objects chosen for this session
