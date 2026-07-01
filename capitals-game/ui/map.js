@@ -1,7 +1,7 @@
 // ── Globe renderer (and legacy flat SVG map, currently unused) ───────────────
 //
 // Public API (exported at the bottom):
-//   createMap(container, capitals, onGuess, difficulty) → { update, reset }
+//   createMap(container, capitals, onGuess, difficulty) → { update, reset, applyTheme }
 //
 //   All difficulty modes currently have globeView:true, so createGlobe() is
 //   always called.  createFlatMap() is dead code but kept for reference.
@@ -11,6 +11,7 @@
 //   Methods on the returned object:
 //     update(guesses, status, target) — recolours dots and redraws rings
 //     reset()                         — restores all dots to starting state
+//     applyTheme()                    — re-reads CSS theme variables and redraws
 //
 // Globe coordinate systems:
 //   [lat, lng]  — geographic degrees (source: data/land_polygons.js, capitals[])
@@ -19,10 +20,11 @@
 //                 z < 0 → back hemisphere  (skip it)
 //   {cx, cy}    — canvas pixels (toCanvas() output; origin = globe centre CX,CY)
 //
-// Data sources imported at module level:
-//   LAND_POLYGONS — rings of [lat,lng] at 50 m Natural Earth resolution
-//   LAKE_POLYGONS — same format; drawn over land to "punch out" water bodies
-//   calculateRing — converts distance + guess# → inner/outer km radii
+// Theming:
+//   Globe colours are not hardcoded. getThemeColors() reads CSS custom properties
+//   (--globe-ocean, --globe-land, etc.) from the document root so the canvas
+//   respects whichever theme class (.light-theme) is active on <body>.
+//   Call applyTheme() after toggling the theme class to force a redraw.
 
 import { LAND_POLYGONS, LAKE_POLYGONS } from '../data/land_polygons.js';
 import { calculateRing } from '../lib/ring_calculator.js';
@@ -258,6 +260,7 @@ function createFlatMap(container, capitals, onGuess, difficulty) {
         dot.circle.setAttribute('r', 3 * scale); dot.hit.setAttribute('r', HIT_R * scale);
       });
     },
+    applyTheme() {}, // flat map has no canvas to redraw
   };
 }
 
@@ -270,6 +273,25 @@ const BASE_R = 275;     // globe radius in pixels at zoom=1
 const GLOBE_MIN = 1;
 const GLOBE_MAX = 8;
 const EARTH_R = 6371;   // km, used to convert ring radii to angular radians
+
+// Reads globe colour tokens from CSS custom properties so the canvas respects
+// the active theme (.light-theme on body vs default dark).
+// Called once on globe creation and again whenever applyTheme() is invoked.
+function getThemeColors() {
+  const s = getComputedStyle(document.documentElement);
+  const get = v => s.getPropertyValue(v).trim();
+  return {
+    ocean:      get('--globe-ocean'),
+    land:       get('--globe-land'),
+    landStroke: get('--globe-land-stroke'),
+    lake:       get('--globe-lake'),
+    lakeStroke: get('--globe-lake-stroke'),
+    rim:        get('--globe-rim'),
+    grid:       get('--globe-grid'),
+    gridEq:     get('--globe-grid-eq'),
+    dot:        get('--globe-dot'),
+  };
+}
 
 // Standard orthographic projection centred at (rotLat, rotLng).
 // Returns unit-sphere {x, y, z}.
@@ -335,19 +357,22 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   let zoom = 1;
   let R = BASE_R;          // effective radius in pixels = BASE_R * zoom
   let currentGuesses = []; // kept so draw() can re-render rings on every frame
+  let colors = getThemeColors(); // read from CSS vars; updated via applyTheme()
 
-  // One entry per capital: { lat, lng, color, r, opacity, visible }
-  // visible=false on hard mode until the player guesses or round ends
+  // One entry per capital: { lat, lng, guessColor, r, opacity, visible }
+  // guessColor is null for unguessed dots — draw() falls back to colors.dot.
+  // visible=false on hard mode until the player guesses or the round ends.
   const dots = new Map();
   capitals.forEach(c => dots.set(c.capital, {
     lat: c.lat, lng: c.lng,
-    color: '#2e7ab5', r: 3, opacity: 0.7,
+    guessColor: null, // null = unguessed (use theme default); set to a hex on guess
+    r: 3, opacity: 0.7,
     visible: difficulty.showDots,
   }));
 
   function drawGlobeGrid() {
     // Meridians and parallels every 18° ≈ 2,000 km at the equator
-    ctx.strokeStyle = '#1e3a52';
+    ctx.strokeStyle = colors.grid;
     ctx.lineWidth = 0.5;
     for (let lng = -180; lng < 180; lng += 18) {
       ctx.beginPath();
@@ -362,7 +387,7 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     }
     // Parallels — equator drawn brighter as a visual reference
     for (let lat = -72; lat <= 72; lat += 18) {
-      ctx.strokeStyle = lat === 0 ? '#2e5070' : '#1e3a52';
+      ctx.strokeStyle = lat === 0 ? colors.gridEq : colors.grid;
       ctx.lineWidth  = lat === 0 ? 1 : 0.5;
       ctx.beginPath();
       let penDown = false;
@@ -423,12 +448,12 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     ctx.beginPath(); ctx.arc(CX, CY, R + 1, 0, Math.PI * 2); ctx.clip();
 
     // Ocean base colour
-    ctx.fillStyle = '#0a0e1a'; ctx.fillRect(0, 0, SIZE, SIZE);
+    ctx.fillStyle = colors.ocean; ctx.fillRect(0, 0, SIZE, SIZE);
 
     // Land polygons — each ring is a closed polygon, rendered fill + stroke
     // -0.05 threshold (not 0): accept points just past the limb so edges near
     // the horizon don't get clipped mid-stroke by the canvas circular clip.
-    ctx.fillStyle = '#111827'; ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 0.7;
+    ctx.fillStyle = colors.land; ctx.strokeStyle = colors.landStroke; ctx.lineWidth = 0.7;
     for (const ring of LAND_POLYGONS) {
       ctx.beginPath();
       let penDown = false;
@@ -443,8 +468,8 @@ function createGlobe(container, capitals, onGuess, difficulty) {
 
     // Lakes: drawn over land in ocean colour to punch water bodies out of land,
     // then given a faint blue stroke so shorelines like the Caspian Sea read as water.
-    ctx.fillStyle = '#0a0e1a';
-    ctx.strokeStyle = 'rgba(80,150,220,0.55)';
+    ctx.fillStyle = colors.lake;
+    ctx.strokeStyle = colors.lakeStroke;
     ctx.lineWidth = 0.7;
     for (const ring of LAKE_POLYGONS) {
       ctx.beginPath();
@@ -465,18 +490,20 @@ function createGlobe(container, capitals, onGuess, difficulty) {
 
     // Globe rim stroke (drawn outside the clip so it sits on top of all content)
     ctx.beginPath(); ctx.arc(CX, CY, R + 1, 0, Math.PI * 2);
-    ctx.strokeStyle = '#163d5e'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = colors.rim; ctx.lineWidth = 1.5; ctx.stroke();
 
-    // Capital dots — fade near the horizon so they don't pop on/off sharply
+    // Capital dots — fade near the horizon so they don't pop on/off sharply.
+    // guessColor is null for unguessed dots; fall back to the theme default.
     dots.forEach(dot => {
       if (!dot.visible) return;
       const p = ortho(dot.lat, dot.lng, rot.lat, rot.lng);
       if (p.z < 0) return;
       const { cx, cy } = toCanvas(p, R);
-      // fade: 0 at the very limb (z=−0.05), full opacity once z ≥ 0.10
+      // fade: 0 at the very limb (z≈0), full opacity once z ≥ 0.10
       const fade = Math.min(1, (p.z + 0.05) / 0.15);
       ctx.beginPath(); ctx.arc(cx, cy, dot.r, 0, Math.PI * 2);
-      ctx.fillStyle = dot.color; ctx.globalAlpha = dot.opacity * fade; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = dot.guessColor ?? colors.dot;
+      ctx.globalAlpha = dot.opacity * fade; ctx.fill(); ctx.globalAlpha = 1;
     });
   }
 
@@ -615,15 +642,15 @@ function createGlobe(container, capitals, onGuess, difficulty) {
       guesses.forEach(g => {
         const dot = dots.get(g.capital);
         if (!dot) return;
-        dot.visible = true;
-        dot.color   = g.correct ? '#22c55e' : '#f97316';
-        dot.r       = 5;
-        dot.opacity = 1;
+        dot.visible    = true;
+        dot.guessColor = g.correct ? '#22c55e' : '#f97316';
+        dot.r          = 5;
+        dot.opacity    = 1;
       });
       if (status !== 'playing' && target) {
         // Always show and highlight the target when the round is over
         const dot = dots.get(target.capital);
-        if (dot) { dot.visible = true; dot.color = '#22c55e'; dot.r = 7; dot.opacity = 1; }
+        if (dot) { dot.visible = true; dot.guessColor = '#22c55e'; dot.r = 7; dot.opacity = 1; }
       }
       draw();
     },
@@ -633,12 +660,18 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     reset() {
       currentGuesses = [];
       dots.forEach(dot => {
-        dot.visible = difficulty.showDots; // hard mode: dots hidden until guessed
-        dot.color   = '#2e7ab5';
-        dot.r       = 3;
-        dot.opacity = 0.7;
+        dot.visible    = difficulty.showDots; // hard mode: dots hidden until guessed
+        dot.guessColor = null;               // revert to theme default colour
+        dot.r          = 3;
+        dot.opacity    = 0.7;
       });
       zoom = 1; rot.lat = 20; rot.lng = 0;
+      draw();
+    },
+
+    // Re-reads CSS theme variables and redraws.  Call after toggling .light-theme on <body>.
+    applyTheme() {
+      colors = getThemeColors();
       draw();
     },
   };

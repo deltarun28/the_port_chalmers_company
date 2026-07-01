@@ -5,19 +5,81 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Capitals Game</title>
   <style>
+    /* ── Theme tokens ─────────────────────────────────────────────────────────
+       All colours in this file use CSS custom properties.
+       :root defines the default dark theme.
+       body.light-theme overrides every token for the outdoor high-contrast mode.
+       Globe canvas colours (--globe-*) are read by map.js via getComputedStyle
+       so the canvas also respects the active theme.                           */
+
+    :root {
+      --bg-base:        #0a0e1a;   /* body, ocean, deep backgrounds */
+      --bg-card:        #0f1e30;   /* input, cards, tooltips */
+      --bg-hover:       #163d5e;   /* hover / active-button fill */
+      --border:         #2e7ab5;   /* primary borders */
+      --border-subtle:  #163d5e;   /* card dividers, subtle lines */
+      --text-primary:   #e8eaf6;   /* main readable text */
+      --text-secondary: #5c9fd4;   /* labels, slot numbers, round header */
+      --text-muted:     #8ab4cc;   /* country names, placeholder */
+      --text-highlight: #a8d8f0;   /* distances, share text */
+      /* round-end state banners */
+      --bg-won:         #052e16;  --border-won:  #22c55e;  --text-won:  #86efac;
+      --bg-fail:        #1a0f0f;  --border-fail: #7f1d1d;  --text-fail: #fca5a5;
+      /* globe canvas — read by map.js */
+      --globe-ocean:       #0a0e1a;
+      --globe-land:        #111827;
+      --globe-land-stroke: rgba(255,255,255,0.22);
+      --globe-lake:        #0a0e1a;
+      --globe-lake-stroke: rgba(80,150,220,0.55);
+      --globe-rim:         #163d5e;
+      --globe-grid:        #1e3a52;
+      --globe-grid-eq:     #2e5070;
+      --globe-dot:         #2e7ab5;
+    }
+
+    /* Outdoor / high-contrast light theme
+       Designed for direct sunlight: pure white cards, near-black text,
+       vivid globe colours with strong land/ocean contrast.                   */
+    body.light-theme {
+      --bg-base:        #d8e8f5;
+      --bg-card:        #ffffff;
+      --bg-hover:       #b8d4ee;
+      --border:         #2e7ab5;
+      --border-subtle:  #90b8d8;
+      --text-primary:   #06111e;
+      --text-secondary: #1a4d80;
+      --text-muted:     #2d6fa8;
+      --text-highlight: #0a3560;
+      /* round-end state banners */
+      --bg-won:         #dcfce7;  --border-won:  #16a34a;  --text-won:  #14532d;
+      --bg-fail:        #fee2e2;  --border-fail: #dc2626;  --text-fail: #7f1d1d;
+      /* globe canvas */
+      --globe-ocean:       #1565a8;
+      --globe-land:        #4a7c59;
+      --globe-land-stroke: rgba(0,0,0,0.3);
+      --globe-lake:        #1565a8;
+      --globe-lake-stroke: rgba(0,50,140,0.65);
+      --globe-rim:         #0a3560;
+      --globe-grid:        rgba(0,50,120,0.25);
+      --globe-grid-eq:     rgba(0,50,120,0.5);
+      --globe-dot:         #f0f5fa;
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #0a0e1a;
-      color: #e8eaf6;
+      background: var(--bg-base);
+      color: var(--text-primary);
       font-family: 'Segoe UI', system-ui, sans-serif;
       min-height: 100vh;
+      transition: background 0.2s, color 0.2s;
     }
 
     header {
       text-align: center;
       padding: 1.2rem 1rem 0.6rem;
-      border-bottom: 1px solid #163d5e;
+      border-bottom: 1px solid var(--border-subtle);
+      position: relative;
     }
 
     header h1 {
@@ -28,18 +90,40 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+    body.light-theme header h1 {
+      /* In light mode the near-white gradient is invisible — switch to dark blues */
+      background: linear-gradient(135deg, #06111e, #1a4d80, #0a5090);
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
 
     .back-link {
       position: absolute;
       top: 1.2rem;
       left: 1rem;
-      color: #5c9fd4;
+      color: var(--text-secondary);
       text-decoration: none;
       font-size: 0.85rem;
       letter-spacing: 2px;
       text-transform: uppercase;
     }
-    .back-link:hover { color: #a8d8f0; }
+    .back-link:hover { color: var(--text-highlight); }
+
+    /* Theme toggle — top-right corner of header */
+    #theme-btn {
+      position: absolute;
+      top: 1.2rem;
+      right: 1rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text-secondary);
+      padding: 0.3rem 0.7rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #theme-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
 
     .mode-bar {
       display: flex;
@@ -52,19 +136,19 @@
     .mode-btn {
       padding: 0.35rem 1rem;
       border-radius: 20px;
-      border: 1px solid #2e7ab5;
+      border: 1px solid var(--border);
       background: transparent;
-      color: #8ab4cc;
+      color: var(--text-muted);
       font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
     }
     .mode-btn.active {
-      background: #163d5e;
-      color: #e8eaf6;
-      border-color: #5c9fd4;
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--text-secondary);
     }
-    .mode-btn:hover:not(.active) { border-color: #5c9fd4; color: #e8eaf6; }
+    .mode-btn:hover:not(.active) { border-color: var(--text-secondary); color: var(--text-primary); }
 
     .diff-bar {
       display: flex;
@@ -77,31 +161,31 @@
     .diff-btn {
       padding: 0.25rem 0.85rem;
       border-radius: 20px;
-      border: 1px solid #2e7ab5;
+      border: 1px solid var(--border);
       background: transparent;
-      color: #8ab4cc;
+      color: var(--text-muted);
       font-size: 0.8rem;
       cursor: pointer;
       transition: all 0.2s;
     }
     .diff-btn.active {
-      background: #163d5e;
-      color: #e8eaf6;
-      border-color: #5c9fd4;
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--text-secondary);
     }
-    .diff-btn:hover:not(.active) { border-color: #5c9fd4; color: #e8eaf6; }
+    .diff-btn:hover:not(.active) { border-color: var(--text-secondary); color: var(--text-primary); }
 
     #new-game-btn {
       padding: 0.35rem 1rem;
       border-radius: 20px;
-      border: 1px solid #2e7ab5;
+      border: 1px solid var(--border);
       background: transparent;
-      color: #8ab4cc;
+      color: var(--text-muted);
       font-size: 0.85rem;
       cursor: pointer;
       display: none;
     }
-    #new-game-btn:hover { border-color: #5c9fd4; color: #e8eaf6; }
+    #new-game-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
 
     main {
       max-width: 880px;
@@ -122,15 +206,15 @@
       justify-content: space-between;
       align-items: center;
       padding: 0.45rem 0.8rem;
-      background: #0f1e30;
-      border: 1px solid #163d5e;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
       border-radius: 8px;
       font-size: 0.85rem;
-      color: #5c9fd4;
+      color: var(--text-secondary);
     }
     .round-header .round-score {
       font-weight: 700;
-      color: #a8d8f0;
+      color: var(--text-highlight);
     }
 
     /* Input */
@@ -139,22 +223,23 @@
     .input-wrap input {
       width: 100%;
       padding: 0.75rem 1rem;
-      background: #0f1e30;
-      border: 1px solid #2e7ab5;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 10px;
-      color: #e8eaf6;
+      color: var(--text-primary);
       font-size: 1rem;
       outline: none;
     }
-    .input-wrap input:focus { border-color: #5c9fd4; }
+    .input-wrap input:focus { border-color: var(--text-secondary); }
     .input-wrap input:disabled { opacity: 0.4; cursor: not-allowed; }
+    .input-wrap input::placeholder { color: var(--text-muted); }
 
     #suggestions {
       position: absolute;
       z-index: 10;
       width: 100%;
-      background: #0f1e30;
-      border: 1px solid #2e7ab5;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-top: none;
       border-radius: 0 0 10px 10px;
       list-style: none;
@@ -164,17 +249,18 @@
       padding: 0.6rem 1rem;
       cursor: pointer;
       font-size: 0.95rem;
+      color: var(--text-primary);
     }
-    #suggestions li:hover, #suggestions li.active { background: #163d5e; }
+    #suggestions li:hover, #suggestions li.active { background: var(--bg-hover); }
 
-    /* Flat SVG map */
+    /* Flat SVG map (dead code) */
     .world-map {
       width: 100%;
       border-radius: 10px;
-      border: 1px solid #163d5e;
+      border: 1px solid var(--border-subtle);
     }
     .capital-dot { cursor: pointer; }
-    .capital-dot:hover circle { opacity: 1; fill: #a8d8f0; }
+    .capital-dot:hover circle { opacity: 1; fill: var(--text-highlight); }
 
     /* Globe */
     .globe-canvas {
@@ -186,12 +272,12 @@
 
     .map-tooltip {
       position: absolute;
-      background: #0f1e30;
-      border: 1px solid #2e7ab5;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 6px;
       padding: 4px 8px;
       font-size: 0.8rem;
-      color: #e8eaf6;
+      color: var(--text-primary);
       pointer-events: none;
       white-space: nowrap;
       z-index: 20;
@@ -208,15 +294,15 @@
     .map-controls button {
       width: 28px;
       height: 28px;
-      background: #0f1e30;
-      border: 1px solid #2e7ab5;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 6px;
-      color: #a8d8f0;
+      color: var(--text-highlight);
       font-size: 1rem;
       cursor: pointer;
       line-height: 1;
     }
-    .map-controls button:hover { background: #163d5e; }
+    .map-controls button:hover { background: var(--bg-hover); }
 
     /* Results */
     .guess-card {
@@ -224,8 +310,8 @@
       align-items: center;
       gap: 0.75rem;
       padding: 0.6rem 0.8rem;
-      background: #0f1e30;
-      border: 1px solid #163d5e;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
       border-radius: 8px;
       min-height: 52px;
     }
@@ -236,22 +322,22 @@
       width: 1.4rem;
       text-align: center;
       font-size: 0.8rem;
-      color: #5c9fd4;
+      color: var(--text-secondary);
       flex-shrink: 0;
     }
     .flag { font-size: 1.5rem; flex-shrink: 0; }
 
     .guess-info { flex: 1; display: flex; flex-direction: column; }
-    .guess-info strong { font-size: 0.95rem; }
-    .country-name { font-size: 0.75rem; color: #8ab4cc; }
+    .guess-info strong { font-size: 0.95rem; color: var(--text-primary); }
+    .country-name { font-size: 0.75rem; color: var(--text-muted); }
 
     .distance-block { text-align: right; flex-shrink: 0; width: 110px; }
-    .dist-label { font-size: 0.75rem; color: #a8d8f0; }
+    .dist-label { font-size: 0.75rem; color: var(--text-highlight); }
 
     .heat-bar-bg {
       margin-top: 4px;
       height: 4px;
-      background: #163d5e;
+      background: var(--border-subtle);
       border-radius: 2px;
       overflow: hidden;
     }
@@ -264,11 +350,11 @@
     .game-over-msg {
       text-align: center;
       padding: 0.8rem;
-      background: #1a0f0f;
-      border: 1px solid #7f1d1d;
+      background: var(--bg-fail);
+      border: 1px solid var(--border-fail);
       border-radius: 8px;
       font-size: 0.95rem;
-      color: #fca5a5;
+      color: var(--text-fail);
     }
 
     .won-banner {
@@ -276,10 +362,10 @@
       justify-content: space-between;
       align-items: center;
       padding: 0.6rem 0.8rem;
-      background: #052e16;
-      border: 1px solid #22c55e;
+      background: var(--bg-won);
+      border: 1px solid var(--border-won);
       border-radius: 8px;
-      color: #86efac;
+      color: var(--text-won);
       font-weight: 600;
     }
 
@@ -287,30 +373,30 @@
       width: 100%;
       padding: 0.55rem 1rem;
       border-radius: 8px;
-      border: 1px solid #2e7ab5;
-      background: #163d5e;
-      color: #e8eaf6;
+      border: 1px solid var(--border);
+      background: var(--bg-hover);
+      color: var(--text-primary);
       font-size: 0.9rem;
       cursor: pointer;
       font-weight: 600;
     }
-    .next-round-btn:hover { background: #1e5f8a; }
+    .next-round-btn:hover { border-color: var(--text-secondary); }
 
     .session-total {
       text-align: center;
       padding: 0.8rem;
-      background: #0f1e30;
-      border: 1px solid #5c9fd4;
+      background: var(--bg-card);
+      border: 1px solid var(--text-secondary);
       border-radius: 8px;
-      color: #a8d8f0;
+      color: var(--text-highlight);
       font-size: 1.1rem;
       font-weight: 700;
     }
 
     /* Share */
     .share-card {
-      background: #0f1e30;
-      border: 1px solid #2e7ab5;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 10px;
       padding: 1rem;
     }
@@ -318,26 +404,26 @@
       font-family: monospace;
       font-size: 0.85rem;
       line-height: 1.7;
-      color: #a8d8f0;
+      color: var(--text-highlight);
       margin-bottom: 0.75rem;
       white-space: pre;
     }
     #copy-btn {
       width: 100%;
       padding: 0.5rem;
-      background: linear-gradient(135deg, #163d5e, #1e5f8a);
-      border: 1px solid #2e7ab5;
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
       border-radius: 8px;
-      color: #e8eaf6;
+      color: var(--text-primary);
       font-size: 0.9rem;
       cursor: pointer;
     }
-    #copy-btn:hover { background: #1e5f8a; }
+    #copy-btn:hover { border-color: var(--text-secondary); }
 
     #loading {
       text-align: center;
       padding: 4rem;
-      color: #5c9fd4;
+      color: var(--text-secondary);
       font-size: 1.1rem;
       grid-column: 1 / -1;
     }
@@ -359,6 +445,7 @@
     <button id="new-game-btn">↺ New game</button>
   </div>
   <div class="diff-bar" id="diff-bar"></div>
+  <button id="theme-btn" title="Switch to outdoor mode">☀️ Outdoor</button>
 </header>
 
 <main id="main">
@@ -369,8 +456,8 @@
   // ── Wiring layer ─────────────────────────────────────────────────────────────
   // index.html is the only file that imports from multiple layers.
   // It owns: session/round lifecycle, mode (daily/random), difficulty selection,
-  // and routing events between the lib/ logic modules and the ui/ display modules.
-  // No game logic lives here — it delegates entirely to the imported modules.
+  // theme toggling, and routing events between the lib/ logic modules and the
+  // ui/ display modules.  No game logic lives here — it delegates entirely.
   //
   // Session structure:
   //   A session = 5 rounds.  Each round has one mystery capital.
@@ -399,7 +486,32 @@
   const dailyBtn = document.getElementById('daily-btn');
   const randomBtn = document.getElementById('random-btn');
   const newGameBtn = document.getElementById('new-game-btn');
+  const themeBtn = document.getElementById('theme-btn');
 
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  // isDark drives a .light-theme class on <body>.  The CSS variables in
+  // :root vs body.light-theme handle all UI colours; the globe canvas reads
+  // its colours via map.js's getThemeColors() → mapCtrl.applyTheme().
+
+  let isDark = localStorage.getItem('theme') !== 'light';
+
+  function applyTheme() {
+    document.body.classList.toggle('light-theme', !isDark);
+    themeBtn.textContent = isDark ? '☀️ Outdoor' : '🌙 Dark';
+    themeBtn.title = isDark ? 'Switch to outdoor mode' : 'Switch to dark mode';
+    if (mapCtrl) mapCtrl.applyTheme(); // redraw globe with new canvas colours
+  }
+
+  themeBtn.addEventListener('click', () => {
+    isDark = !isDark;
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    applyTheme();
+  });
+
+  // Apply persisted theme before building UI so the globe reads the right colours
+  applyTheme();
+
+  // ── Data loading ──────────────────────────────────────────────────────────
   // Load capitals first (30 KB) — enough to build the globe and pick targets.
   // Distances (1.2 MB) loads in the background; startSession() shows a skeleton
   // and startRound() fires only once the promise resolves.
@@ -449,6 +561,8 @@
     const mapContainer = document.getElementById('map-container');
     mapContainer.innerHTML = '';
     mapCtrl = createMap(mapContainer, capitals, handleGuess, DIFFICULTIES[difficultyKey]);
+    // Ensure the freshly built globe uses the current theme colours
+    applyTheme();
   }
 
   rebuildMap();
@@ -481,7 +595,7 @@
       // Show skeleton while distances.json finishes loading
       renderRoundHeader();
       document.getElementById('results-container').innerHTML =
-        '<div style="text-align:center;color:#5c9fd4;padding:1.5rem;font-size:0.9rem">Loading…</div>';
+        '<div style="text-align:center;color:var(--text-secondary);padding:1.5rem;font-size:0.9rem">Loading…</div>';
       inputCtrl.disable();
       distancesPromise.then(d => { distances = d; startRound(); });
     }
@@ -503,7 +617,7 @@
   }
 
   function handleGuess(capital) {
-    if (!game) return;
+    if (!game) return; // distances not yet loaded
     const state = game.getState();
     if (state.status !== 'playing') return;
     if (guessedCapitals.has(capital.capital)) return;
