@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Fetches Natural Earth 110m land polygons (GeoJSON) and outputs:
+Fetches Natural Earth 110m land + lakes GeoJSON and outputs:
   data/coastline.js     — SVG path string (Mercator, 800x400)
   data/land_polygons.js — raw lat/lng polygon arrays for globe rendering
+                          (exports LAND_POLYGONS and LAKE_POLYGONS)
 """
 import urllib.request
 import json
@@ -31,36 +32,56 @@ def ring_to_path(ring):
     return d
 
 def ring_to_latlng(ring):
-    # Returns [[lat, lng], ...] — drop last point if it duplicates first (closed ring)
     coords = ring[:-1] if len(ring) > 1 and ring[0] == ring[-1] else ring
     return [[round(c[1], 4), round(c[0], 4)] for c in coords]
 
-url = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_land.geojson'
-print(f'Fetching {url} ...')
-with urllib.request.urlopen(url, timeout=30) as resp:
-    data = json.load(resp)
+def fetch_polygons(url):
+    print(f'Fetching {url} ...')
+    with urllib.request.urlopen(url, timeout=30) as resp:
+        data = json.load(resp)
+    polys = []
+    for feature in data['features']:
+        geom = feature['geometry']
+        if geom['type'] == 'Polygon':
+            ring = geom['coordinates'][0]
+            if len(ring) >= 3:
+                polys.append(ring_to_latlng(ring))
+        elif geom['type'] == 'MultiPolygon':
+            for poly in geom['coordinates']:
+                ring = poly[0]
+                if len(ring) >= 3:
+                    polys.append(ring_to_latlng(ring))
+    return polys
+
+BASE_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson'
+
+land_data_url = f'{BASE_URL}/ne_110m_land.geojson'
+print(f'Fetching {land_data_url} ...')
+with urllib.request.urlopen(land_data_url, timeout=30) as resp:
+    land_data = json.load(resp)
 
 paths = []
-polygons = []  # list of [[lat,lng], ...]
-
-for feature in data['features']:
+land_polygons = []
+for feature in land_data['features']:
     geom = feature['geometry']
     if geom['type'] == 'Polygon':
         ring = geom['coordinates'][0]
         p = ring_to_path(ring)
         if p:
             paths.append(p)
-            polygons.append(ring_to_latlng(ring))
+            land_polygons.append(ring_to_latlng(ring))
     elif geom['type'] == 'MultiPolygon':
         for poly in geom['coordinates']:
             ring = poly[0]
             p = ring_to_path(ring)
             if p:
                 paths.append(p)
-                polygons.append(ring_to_latlng(ring))
+                land_polygons.append(ring_to_latlng(ring))
+
+lake_polygons = fetch_polygons(f'{BASE_URL}/ne_110m_lakes.geojson')
 
 combined = ' '.join(paths)
-print(f'Generated {len(paths)} land polygons, {len(combined)} chars of SVG path data')
+print(f'Land: {len(land_polygons)} polygons, Lakes: {len(lake_polygons)} polygons')
 
 base = os.path.join(os.path.dirname(__file__), '..', 'data')
 
@@ -72,6 +93,8 @@ print(f'Written to {out_svg}')
 out_poly = os.path.join(base, 'land_polygons.js')
 with open(out_poly, 'w') as f:
     f.write('export const LAND_POLYGONS = ')
-    f.write(json.dumps(polygons, separators=(',', ':')))
+    f.write(json.dumps(land_polygons, separators=(',', ':')))
+    f.write(';\nexport const LAKE_POLYGONS = ')
+    f.write(json.dumps(lake_polygons, separators=(',', ':')))
     f.write(';\n')
 print(f'Written to {out_poly}')
