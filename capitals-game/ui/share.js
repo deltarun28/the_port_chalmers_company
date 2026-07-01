@@ -1,5 +1,19 @@
+// Generates a shareable score card for a completed 5-round session.
+// Called once by endSession() in index.html with the full roundResults array.
+//
+// roundResults shape: [{ target, guesses, score, won }, …] — one entry per round.
+//
+// Copyable text format:
+//   🌍 CapitalsGame 2026-07-01 · Moderate
+//   1. 🇫🇷 Paris — 🔴🟡🎯 +180
+//   2. 🇧🇷 Brasília — 🔴🔴🔴🔴🔴🔴💀 +0
+//   Total: 700/1000
+//
+// Emoji key: 🔴 far  🟠 medium  🟡 close  🟢 very close  🎯 correct  💀 failed
+
 const MAX_DISTANCE = 20000;
 
+// Returns the emoji sequence for one round's guesses
 function roundEmoji(guesses, won) {
   return guesses.map(g => {
     if (g.correct) return '🎯';

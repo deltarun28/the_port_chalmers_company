@@ -1,3 +1,19 @@
+// Core game state for a single round (one mystery capital).
+// Pure logic — no DOM, no fetches.  index.html creates a fresh instance
+// at the start of each of the 5 rounds via createGame(target, distances, difficulty).
+//
+// State shape returned by submitGuess() and getState():
+//   {
+//     target:      capital object (the answer),
+//     guesses:     [ { ...capitalObj, distance, correct }, … ],
+//     attempts:    number of guesses made,
+//     maxAttempts: from DIFFICULTIES[difficulty].maxGuesses,
+//     status:      'playing' | 'won' | 'lost'
+//   }
+//
+// distances is the pre-loaded distances.json map (O(1) lookup).
+// Key format: "GuessCity→TargetCity" (matches the generated table).
+
 import { DIFFICULTIES } from './difficulty.js';
 
 export function createGame(target, distances, difficulty = 'moderate') {
@@ -26,6 +42,7 @@ export function createGame(target, distances, difficulty = 'moderate') {
       state.status = 'lost';
     }
 
+    // Return copies so callers cannot accidentally mutate internal state
     return { ...state, guesses: [...state.guesses] };
   }
 
