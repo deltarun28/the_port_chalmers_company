@@ -389,8 +389,8 @@ function createGlobe(container, capitals, onGuess, difficulty) {
 
     // lakes drawn over land as ocean colour
     ctx.fillStyle = '#0a0e1a';
-    ctx.strokeStyle = 'rgba(100,160,200,0.2)';
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = 'rgba(80,150,220,0.55)';
+    ctx.lineWidth = 0.7;
     for (const ring of LAKE_POLYGONS) {
       ctx.beginPath();
       let lpenDown = false;

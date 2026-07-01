@@ -35,29 +35,31 @@ def ring_to_latlng(ring):
     coords = ring[:-1] if len(ring) > 1 and ring[0] == ring[-1] else ring
     return [[round(c[1], 4), round(c[0], 4)] for c in coords]
 
-def fetch_polygons(url):
+def fetch_polygons(url, min_pts=3):
     print(f'Fetching {url} ...')
-    with urllib.request.urlopen(url, timeout=30) as resp:
+    with urllib.request.urlopen(url, timeout=60) as resp:
         data = json.load(resp)
     polys = []
     for feature in data['features']:
         geom = feature['geometry']
         if geom['type'] == 'Polygon':
             ring = geom['coordinates'][0]
-            if len(ring) >= 3:
+            if len(ring) >= min_pts:
                 polys.append(ring_to_latlng(ring))
         elif geom['type'] == 'MultiPolygon':
             for poly in geom['coordinates']:
                 ring = poly[0]
-                if len(ring) >= 3:
+                if len(ring) >= min_pts:
                     polys.append(ring_to_latlng(ring))
     return polys
 
 BASE_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson'
+MIN_LAND_PTS  = 20   # skip tiny islands — keeps continents, large islands, NZ
+MIN_LAKE_PTS  = 50   # keeps only major lakes: Caspian, Great Lakes, Victoria etc.
 
-land_data_url = f'{BASE_URL}/ne_110m_land.geojson'
+land_data_url = f'{BASE_URL}/ne_50m_land.geojson'
 print(f'Fetching {land_data_url} ...')
-with urllib.request.urlopen(land_data_url, timeout=30) as resp:
+with urllib.request.urlopen(land_data_url, timeout=60) as resp:
     land_data = json.load(resp)
 
 paths = []
@@ -66,6 +68,8 @@ for feature in land_data['features']:
     geom = feature['geometry']
     if geom['type'] == 'Polygon':
         ring = geom['coordinates'][0]
+        if len(ring) < MIN_LAND_PTS:
+            continue
         p = ring_to_path(ring)
         if p:
             paths.append(p)
@@ -73,12 +77,14 @@ for feature in land_data['features']:
     elif geom['type'] == 'MultiPolygon':
         for poly in geom['coordinates']:
             ring = poly[0]
+            if len(ring) < MIN_LAND_PTS:
+                continue
             p = ring_to_path(ring)
             if p:
                 paths.append(p)
                 land_polygons.append(ring_to_latlng(ring))
 
-lake_polygons = fetch_polygons(f'{BASE_URL}/ne_110m_lakes.geojson')
+lake_polygons = fetch_polygons(f'{BASE_URL}/ne_50m_lakes.geojson', min_pts=MIN_LAKE_PTS)
 
 combined = ' '.join(paths)
 print(f'Land: {len(land_polygons)} polygons, Lakes: {len(lake_polygons)} polygons')
