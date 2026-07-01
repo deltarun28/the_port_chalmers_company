@@ -1,5 +1,5 @@
 import { COASTLINE } from '../data/coastline.js';
-import { LAND_POLYGONS } from '../data/land_polygons.js';
+import { LAND_POLYGONS, LAKE_POLYGONS } from '../data/land_polygons.js';
 import { calculateRing } from '../lib/ring_calculator.js';
 
 // ── Flat SVG map (easy / moderate) ─────────────────────────────────────────
@@ -306,10 +306,10 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   capitals.forEach(c => dots.set(c.capital, { lat: c.lat, lng: c.lng, color: '#2e7ab5', r: 3, opacity: 0.7, visible: difficulty.showDots }));
 
   function drawGlobeGrid() {
-    // meridians every 45°
+    // meridians every 18° ≈ 2,000 km at the equator
     ctx.strokeStyle = '#1e3a52';
     ctx.lineWidth = 0.5;
-    for (let lng = -180; lng < 180; lng += 45) {
+    for (let lng = -180; lng < 180; lng += 18) {
       ctx.beginPath();
       let penDown = false;
       for (let lat = -90; lat <= 90; lat += 2) {
@@ -383,6 +383,22 @@ function createGlobe(container, capitals, onGuess, difficulty) {
         if (p.z < -0.05) { penDown = false; continue; }
         const { cx, cy } = toCanvas(p, R);
         if (!penDown) { ctx.moveTo(cx, cy); penDown = true; } else ctx.lineTo(cx, cy);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+
+    // lakes drawn over land as ocean colour
+    ctx.fillStyle = '#0a0e1a';
+    ctx.strokeStyle = 'rgba(100,160,200,0.2)';
+    ctx.lineWidth = 0.5;
+    for (const ring of LAKE_POLYGONS) {
+      ctx.beginPath();
+      let lpenDown = false;
+      for (const [lat, lng] of ring) {
+        const p = ortho(lat, lng, rot.lat, rot.lng);
+        if (p.z < -0.05) { lpenDown = false; continue; }
+        const { cx, cy } = toCanvas(p, R);
+        if (!lpenDown) { ctx.moveTo(cx, cy); lpenDown = true; } else ctx.lineTo(cx, cy);
       }
       ctx.closePath(); ctx.fill(); ctx.stroke();
     }
