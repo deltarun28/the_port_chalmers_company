@@ -33,7 +33,7 @@ def ring_to_path(ring):
 
 def ring_to_latlng(ring):
     coords = ring[:-1] if len(ring) > 1 and ring[0] == ring[-1] else ring
-    return [[round(c[1], 4), round(c[0], 4)] for c in coords]
+    return [[round(c[1], 1), round(c[0], 1)] for c in coords]
 
 def fetch_polygons(url, min_pts=3):
     print(f'Fetching {url} ...')
