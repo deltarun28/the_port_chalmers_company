@@ -114,6 +114,25 @@
 
     .left-col { display: flex; flex-direction: column; gap: 0.75rem; }
 
+    #right-col { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    /* Round header */
+    .round-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.45rem 0.8rem;
+      background: #0f1e30;
+      border: 1px solid #163d5e;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #5c9fd4;
+    }
+    .round-header .round-score {
+      font-weight: 700;
+      color: #a8d8f0;
+    }
+
     /* Input */
     .input-wrap { position: relative; }
 
@@ -253,13 +272,39 @@
     }
 
     .won-banner {
-      text-align: center;
-      padding: 0.6rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0.8rem;
       background: #052e16;
       border: 1px solid #22c55e;
       border-radius: 8px;
       color: #86efac;
       font-weight: 600;
+    }
+
+    .next-round-btn {
+      width: 100%;
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      border: 1px solid #2e7ab5;
+      background: #163d5e;
+      color: #e8eaf6;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .next-round-btn:hover { background: #1e5f8a; }
+
+    .session-total {
+      text-align: center;
+      padding: 0.8rem;
+      background: #0f1e30;
+      border: 1px solid #5c9fd4;
+      border-radius: 8px;
+      color: #a8d8f0;
+      font-size: 1.1rem;
+      font-weight: 700;
     }
 
     /* Share */
@@ -268,12 +313,11 @@
       border: 1px solid #2e7ab5;
       border-radius: 10px;
       padding: 1rem;
-      margin-top: 0.75rem;
     }
     .share-text {
       font-family: monospace;
-      font-size: 0.9rem;
-      line-height: 1.6;
+      font-size: 0.85rem;
+      line-height: 1.7;
       color: #a8d8f0;
       margin-bottom: 0.75rem;
       white-space: pre;
@@ -322,7 +366,7 @@
 </main>
 
 <script type="module">
-  import { getDailyTarget } from './lib/daily_target.js';
+  import { getDailyTargets } from './lib/daily_target.js';
   import { createGame } from './lib/game.js';
   import { createInput } from './ui/input.js';
   import { createMap } from './ui/map.js';
@@ -330,7 +374,9 @@
   import { share } from './ui/share.js';
   import { DIFFICULTIES } from './lib/difficulty.js';
   import { createDifficultyPicker } from './ui/difficulty_picker.js';
+  import { calcScore } from './lib/scoring.js';
 
+  const ROUNDS = 5;
   const main = document.getElementById('main');
   const dailyBtn = document.getElementById('daily-btn');
   const randomBtn = document.getElementById('random-btn');
@@ -344,6 +390,10 @@
   let mode = 'daily';
   let difficultyKey = localStorage.getItem('difficulty') || 'moderate';
   let inputCtrl, mapCtrl;
+  let targets = [];
+  let currentRound = 0;
+  let roundResults = [];
+  let game, guessedCapitals;
 
   main.innerHTML = `
     <div class="left-col">
@@ -351,6 +401,7 @@
       <div id="map-container"></div>
     </div>
     <div id="right-col">
+      <div id="round-header"></div>
       <div id="results-container"></div>
       <div id="share-container"></div>
     </div>
@@ -363,7 +414,7 @@
       difficultyKey = key;
       localStorage.setItem('difficulty', key);
       rebuildMap();
-      startGame();
+      startSession();
     }
   );
 
@@ -377,26 +428,44 @@
 
   rebuildMap();
 
-  function getTarget() {
-    if (mode === 'daily') {
-      return getDailyTarget(capitals, new Date().toISOString().slice(0, 10));
-    }
-    return capitals[Math.floor(Math.random() * capitals.length)];
+  function getTargets() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (mode === 'daily') return getDailyTargets(capitals, today, ROUNDS);
+    const shuffled = [...capitals].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, ROUNDS);
   }
 
-  let game, guessedCapitals;
+  function renderRoundHeader() {
+    const score = roundResults.reduce((s, r) => s + r.score, 0);
+    document.getElementById('round-header').innerHTML = `
+      <div class="round-header">
+        <span>Capital ${currentRound + 1} of ${ROUNDS}</span>
+        <span class="round-score">${score} pts</span>
+      </div>
+    `;
+  }
 
-  function startGame() {
-    const target = getTarget();
-    game = createGame(target, distances, difficultyKey);
+  function startSession() {
+    targets = getTargets();
+    currentRound = 0;
+    roundResults = [];
+    document.getElementById('share-container').innerHTML = '';
+    startRound();
+  }
+
+  function startRound() {
+    game = createGame(targets[currentRound], distances, difficultyKey);
     guessedCapitals = new Set();
-
     mapCtrl.reset();
     inputCtrl.enable();
     inputCtrl.clear();
     inputCtrl.focus();
-    document.getElementById('share-container').innerHTML = '';
-    renderResults(document.getElementById('results-container'), [], 'playing', target, DIFFICULTIES[difficultyKey].maxGuesses);
+    renderRoundHeader();
+    renderResults(
+      document.getElementById('results-container'),
+      [], 'playing', targets[currentRound],
+      DIFFICULTIES[difficultyKey].maxGuesses
+    );
   }
 
   function handleGuess(capital) {
@@ -413,17 +482,50 @@
       DIFFICULTIES[difficultyKey].maxGuesses
     );
 
-    if (newState.status === 'won') {
-      document.getElementById('results-container').insertAdjacentHTML(
-        'beforeend',
-        `<div class="won-banner">🎉 ${newState.guesses.length === 1 ? 'First guess!' : `Got it in ${newState.guesses.length}!`}</div>`
-      );
-      inputCtrl.disable();
-      share(document.getElementById('share-container'), newState.guesses, 'won', newState.target);
-    } else if (newState.status === 'lost') {
-      inputCtrl.disable();
-      share(document.getElementById('share-container'), newState.guesses, 'lost', newState.target);
+    if (newState.status === 'won' || newState.status === 'lost') {
+      endRound(newState);
     }
+  }
+
+  function endRound(state) {
+    inputCtrl.disable();
+    const won = state.status === 'won';
+    const score = calcScore(state.guesses.length, won);
+    roundResults.push({ target: state.target, guesses: state.guesses, score, won });
+    renderRoundHeader();
+
+    const isLast = currentRound === ROUNDS - 1;
+    const resultsEl = document.getElementById('results-container');
+
+    if (won) {
+      const label = state.guesses.length === 1 ? 'First guess!' : `Got it in ${state.guesses.length}!`;
+      resultsEl.insertAdjacentHTML('beforeend', `
+        <div class="won-banner">
+          <span>🎉 ${label}</span>
+          <strong>+${score} pts</strong>
+        </div>
+      `);
+    }
+
+    if (!isLast) {
+      resultsEl.insertAdjacentHTML('beforeend', `
+        <button class="next-round-btn" id="next-round-btn">Next Capital →</button>
+      `);
+      document.getElementById('next-round-btn').addEventListener('click', () => {
+        currentRound++;
+        startRound();
+      });
+    } else {
+      endSession();
+    }
+  }
+
+  function endSession() {
+    const total = roundResults.reduce((s, r) => s + r.score, 0);
+    document.getElementById('results-container').insertAdjacentHTML('beforeend', `
+      <div class="session-total">Final score: ${total} / ${ROUNDS * 200}</div>
+    `);
+    share(document.getElementById('share-container'), roundResults, difficultyKey);
   }
 
   dailyBtn.addEventListener('click', () => {
@@ -432,7 +534,7 @@
     dailyBtn.classList.add('active');
     randomBtn.classList.remove('active');
     newGameBtn.style.display = 'none';
-    startGame();
+    startSession();
   });
 
   randomBtn.addEventListener('click', () => {
@@ -440,12 +542,12 @@
     randomBtn.classList.add('active');
     dailyBtn.classList.remove('active');
     newGameBtn.style.display = 'inline-block';
-    startGame();
+    startSession();
   });
 
-  newGameBtn.addEventListener('click', startGame);
+  newGameBtn.addEventListener('click', startSession);
 
-  startGame();
+  startSession();
 </script>
 
 </body>
