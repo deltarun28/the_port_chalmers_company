@@ -26,8 +26,17 @@
 //   respects whichever theme class (.light-theme) is active on <body>.
 //   Call applyTheme() after toggling the theme class to force a redraw.
 
-import { LAND_POLYGONS, LAKE_POLYGONS } from '../data/land_polygons.js';
 import { calculateRing } from '../lib/ring_calculator.js';
+
+// Polygon data is large (756KB) — fetch it as JSON so it doesn't block the
+// initial module parse.  The globe renders an ocean-only sphere immediately;
+// land and lakes appear once the fetch resolves.
+let LAND_POLYGONS = [];
+let LAKE_POLYGONS = [];
+const polygonsReady = fetch(new URL('../data/land_polygons.json', import.meta.url))
+  .then(r => r.json())
+  .then(d => { LAND_POLYGONS = d.land; LAKE_POLYGONS = d.lake; })
+  .catch(e => console.error('Failed to load land_polygons.json:', e));
 
 // ── Flat SVG map (dead code — all modes use globe) ───────────────────────────
 
@@ -632,7 +641,8 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   });
   wrap.appendChild(controls);
 
-  draw(); // initial render
+  draw(); // initial render (ocean-only if polygons haven't loaded yet)
+  polygonsReady.then(() => draw()); // redraw with land once data arrives
 
   return {
     // Called by index.html after every guess and on round end.

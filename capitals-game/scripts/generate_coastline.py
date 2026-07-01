@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Fetches Natural Earth 110m land + lakes GeoJSON and outputs:
-  data/coastline.js     — SVG path string (Mercator, 800x400)
-  data/land_polygons.js — raw lat/lng polygon arrays for globe rendering
-                          (exports LAND_POLYGONS and LAKE_POLYGONS)
+Fetches Natural Earth 50m land + lakes GeoJSON and outputs:
+  data/coastline.js       — SVG path string (Mercator, 800x400) — legacy, unused
+  data/land_polygons.json — raw lat/lng polygon arrays for globe rendering
+                            {"land": [[...]], "lake": [[...]]}
+                            Fetched at runtime by map.js (not a static import).
 """
 import urllib.request
 import json
@@ -96,11 +97,7 @@ with open(out_svg, 'w') as f:
     f.write(f'export const COASTLINE = `{combined}`;\n')
 print(f'Written to {out_svg}')
 
-out_poly = os.path.join(base, 'land_polygons.js')
+out_poly = os.path.join(base, 'land_polygons.json')
 with open(out_poly, 'w') as f:
-    f.write('export const LAND_POLYGONS = ')
-    f.write(json.dumps(land_polygons, separators=(',', ':')))
-    f.write(';\nexport const LAKE_POLYGONS = ')
-    f.write(json.dumps(lake_polygons, separators=(',', ':')))
-    f.write(';\n')
+    json.dump({'land': land_polygons, 'lake': lake_polygons}, f, separators=(',', ':'))
 print(f'Written to {out_poly}')
