@@ -12,6 +12,8 @@
 //   orange (#f97316) — within ~15,000 km  (pct > 25)
 //   red    (#ef4444) — more than ~15,000 km away
 
+import { renderFlag } from '../lib/flags.js';
+
 const MAX_DISTANCE = 20000; // approximate max distance between any two capitals (km)
 
 export function renderResults(container, guesses, status, target, maxAttempts) {
@@ -30,7 +32,7 @@ export function renderResults(container, guesses, status, target, maxAttempts) {
     return `
       <div class="guess-card ${g.correct ? 'correct' : ''}">
         <span class="slot-num">${i + 1}</span>
-        <span class="flag">${g.flag}</span>
+        <span class="flag">${renderFlag(g.flag)}</span>
         <div class="guess-info">
           <strong>${g.capital}</strong>
           <span class="country-name">${g.country}</span>
@@ -49,7 +51,7 @@ export function renderResults(container, guesses, status, target, maxAttempts) {
   if (status === 'lost') {
     container.innerHTML += `
       <div class="game-over-msg">
-        The answer was ${target.flag} <strong>${target.capital}</strong>, ${target.country}
+        The answer was ${renderFlag(target.flag)} <strong>${target.capital}</strong>, ${target.country}
       </div>
     `;
   }

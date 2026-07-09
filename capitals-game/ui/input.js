@@ -9,6 +9,8 @@
 // Keyboard nav: ↑↓ move through suggestions, Enter commits, Escape dismisses.
 // Matching is substring across capital name, country name, and aliases.
 
+import { renderFlag } from '../lib/flags.js';
+
 export function createInput(container, capitals, onGuess) {
   container.innerHTML = `
     <div class="input-wrap">
@@ -33,7 +35,7 @@ export function createInput(container, capitals, onGuess) {
 
   function renderSuggestions(items) {
     list.innerHTML = items.map((c, i) =>
-      `<li data-index="${i}">${c.flag} <strong>${c.capital}</strong> — ${c.country}</li>`
+      `<li data-index="${i}">${renderFlag(c.flag)} <strong>${c.capital}</strong> — ${c.country}</li>`
     ).join('');
     list.style.display = items.length ? 'block' : 'none';
     activeIndex = -1;
