@@ -624,8 +624,10 @@
     const d = new Date();
     const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     if (mode === 'daily') return getDailyTargets(capitals, today);
-    const shuffled = [...capitals].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, ROUNDS);
+    return [1, 2, 3, 4, 5].map(tier => {
+      const pool = capitals.filter(c => c.difficulty === tier);
+      return pool[Math.floor(Math.random() * pool.length)];
+    });
   }
 
   function renderRoundHeader() {
