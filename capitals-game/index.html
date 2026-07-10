@@ -75,56 +75,54 @@
       background: var(--bg-base);
       color: var(--text-primary);
       font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
       transition: background 0.2s, color 0.2s;
     }
 
+    /* Compact header — flex row: back-link | center controls | theme btn */
     header {
-      text-align: center;
-      padding: 1.2rem 1rem 0.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.45rem 1rem;
       border-bottom: 1px solid var(--border-subtle);
-      position: relative;
+      flex-shrink: 0;
     }
 
-    header h1 {
-      font-size: 1.8rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, #e8eaf6, #5c9fd4, #a8d8f0);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    body.light-theme header h1 {
-      /* In light mode the near-white gradient is invisible — switch to dark blues */
-      background: linear-gradient(135deg, #06111e, #1a4d80, #0a5090);
-      -webkit-background-clip: text;
-      background-clip: text;
+    .header-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      flex: 1;
+      min-width: 0;
     }
 
     .back-link {
-      position: absolute;
-      top: 1.2rem;
-      left: 1rem;
       color: var(--text-secondary);
       text-decoration: none;
-      font-size: 0.85rem;
-      letter-spacing: 2px;
+      font-size: 0.8rem;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .back-link:hover { color: var(--text-highlight); }
 
-    /* Theme toggle — top-right corner of header */
     #theme-btn {
-      position: absolute;
-      top: 1.2rem;
-      right: 1rem;
+      flex-shrink: 0;
       background: transparent;
       border: 1px solid var(--border);
       border-radius: 20px;
       color: var(--text-secondary);
       padding: 0.3rem 0.7rem;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       cursor: pointer;
+      white-space: nowrap;
       transition: border-color 0.15s, color 0.15s;
     }
     #theme-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
@@ -133,8 +131,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      margin-top: 0.7rem;
+      gap: 0.4rem;
+      flex-wrap: wrap;
     }
 
     .mode-btn {
@@ -158,8 +156,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      margin-top: 0.4rem;
+      gap: 0.4rem;
     }
 
     .diff-btn {
@@ -192,17 +189,53 @@
     #new-game-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
 
     main {
-      max-width: 880px;
-      margin: 0 auto;
-      padding: 1rem;
+      flex: 1;
+      min-height: 0;
       display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 1rem;
+      grid-template-columns: 1fr 300px;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      overflow: hidden;
     }
 
-    .left-col { display: flex; flex-direction: column; gap: 0.75rem; }
+    .left-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 0;
+    }
 
-    #right-col { display: flex; flex-direction: column; gap: 0.5rem; }
+    /* Map container fills all remaining height in the left column */
+    #map-container {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* Globe wrap — override the inline-block set by map.js so it fills the container.
+       aspect-ratio keeps the circle square; max-height prevents it overflowing vertically. */
+    #map-container > div {
+      position: relative !important;
+      display: block !important;
+      width: 100%;
+      max-height: 100%;
+      aspect-ratio: 1;
+    }
+
+    .globe-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 50%;
+    }
+
+    #right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      overflow-y: auto;
+      min-height: 0;
+    }
 
     /* Round header */
     .round-header {
@@ -266,13 +299,7 @@
     .capital-dot { cursor: pointer; }
     .capital-dot:hover circle { opacity: 1; fill: var(--text-highlight); }
 
-    /* Globe */
-    .globe-canvas {
-      width: 100%;
-      height: auto;
-      display: block;
-      border-radius: 50%;
-    }
+    /* Globe — sizing handled by #map-container > div rule above */
 
     .map-tooltip {
       position: absolute;
@@ -433,22 +460,29 @@
     }
 
     @media (max-width: 640px) {
-      main { grid-template-columns: 1fr; }
+      /* On mobile: allow page to scroll rather than being locked to viewport height */
+      body { height: auto; min-height: 100dvh; overflow-y: auto; }
+      main { grid-template-columns: 1fr; overflow: visible; height: auto; }
+      #right-col { overflow-y: visible; }
+      /* Globe fills screen width naturally; no height cap needed */
+      #map-container { flex: none; }
+      #map-container > div { max-height: none; }
+      header { flex-wrap: wrap; gap: 0.5rem; }
     }
   </style>
 </head>
 <body>
 
-<a class="back-link" href="../index.html">← Home</a>
-
 <header>
-  <h1>🌍 Capitals Game</h1>
-  <div class="mode-bar">
-    <button class="mode-btn active" id="daily-btn">📅 Daily</button>
-    <button class="mode-btn" id="random-btn">🎲 Random</button>
-    <button id="new-game-btn">↺ New game</button>
+  <a class="back-link" href="../index.html">← Home</a>
+  <div class="header-center">
+    <div class="mode-bar">
+      <button class="mode-btn active" id="daily-btn">📅 Daily</button>
+      <button class="mode-btn" id="random-btn">🎲 Random</button>
+      <button id="new-game-btn">↺ New game</button>
+    </div>
+    <div class="diff-bar" id="diff-bar"></div>
   </div>
-  <div class="diff-bar" id="diff-bar"></div>
   <button id="theme-btn" title="Switch to outdoor mode">☀️ Outdoor</button>
 </header>
 
