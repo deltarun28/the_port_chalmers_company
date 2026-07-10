@@ -205,21 +205,26 @@
       min-height: 0;
     }
 
-    /* Map container fills all remaining height in the left column */
+    /* Map container fills all remaining height in the left column.
+       container-type: size enables cqw/cqh units on children so the
+       globe can size itself to min(container-width, container-height). */
     #map-container {
       flex: 1;
       min-height: 0;
       overflow: hidden;
+      container-type: size;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    /* Globe wrap — override the inline-block set by map.js so it fills the container.
-       aspect-ratio keeps the circle square; max-height prevents it overflowing vertically. */
+    /* Globe wrap — always a square equal to whichever container dimension is smaller.
+       min(100cqw, 100cqh) is the CSS-native way to inscribe a square inside a rectangle. */
     #map-container > div {
       position: relative !important;
       display: block !important;
-      width: 100%;
-      max-height: 100%;
-      aspect-ratio: 1;
+      width: min(100cqw, 100cqh);
+      height: min(100cqw, 100cqh);
     }
 
     .globe-canvas {
@@ -464,9 +469,10 @@
       body { height: auto; min-height: 100dvh; overflow-y: auto; }
       main { grid-template-columns: 1fr; overflow: visible; height: auto; }
       #right-col { overflow-y: visible; }
-      /* Globe fills screen width naturally; no height cap needed */
-      #map-container { flex: none; }
-      #map-container > div { max-height: none; }
+      /* On mobile the container is unconstrained vertically, so cqh = 0.
+         Fall back to full column width for the globe size. */
+      #map-container { flex: none; container-type: inline-size; }
+      #map-container > div { width: 100cqw; height: 100cqw; }
       header { flex-wrap: wrap; gap: 0.5rem; }
     }
   </style>
