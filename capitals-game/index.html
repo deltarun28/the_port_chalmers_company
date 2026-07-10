@@ -43,8 +43,10 @@
 
     /* Outdoor / high-contrast light theme
        Designed for direct sunlight: pure white cards, near-black text,
-       vivid globe colours with strong land/ocean contrast.                   */
-    body.light-theme {
+       vivid globe colours with strong land/ocean contrast.
+       Class is on <html> so map.js can read variables from
+       document.documentElement without any inheritance ambiguity.            */
+    html.light-theme {
       --bg-base:        #d8e8f5;
       --bg-card:        #ffffff;
       --bg-hover:       #b8d4ee;
@@ -543,14 +545,14 @@
   let inputCtrl, mapCtrl;
 
   // ── Theme ─────────────────────────────────────────────────────────────────
-  // isDark drives a .light-theme class on <body>.  The CSS variables in
-  // :root vs body.light-theme handle all UI colours; the globe canvas reads
-  // its colours via map.js's getThemeColors() → mapCtrl.applyTheme().
+  // isDark drives a .light-theme class on <html> (documentElement).
+  // Putting it on <html> means map.js can read CSS variables from
+  // document.documentElement directly — no inheritance ambiguity vs <body>.
 
   let isDark = localStorage.getItem('theme') !== 'light';
 
   function applyTheme() {
-    document.body.classList.toggle('light-theme', !isDark);
+    document.documentElement.classList.toggle('light-theme', !isDark);
     themeBtn.textContent = isDark ? '☀️ Outdoor' : '🌙 Dark';
     themeBtn.title = isDark ? 'Switch to outdoor mode' : 'Switch to dark mode';
     if (mapCtrl) mapCtrl.applyTheme(); // redraw globe with new canvas colours
