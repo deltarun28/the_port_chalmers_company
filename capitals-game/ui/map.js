@@ -459,25 +459,22 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     // Ocean base colour
     ctx.fillStyle = colors.ocean; ctx.fillRect(0, 0, SIZE, SIZE);
 
-    // Land polygons — each ring is a closed polygon, rendered fill + stroke
+    // Land polygons — each ring is a closed polygon, rendered fill + stroke.
     // -0.05 threshold (not 0): accept points just past the limb so edges near
     // the horizon don't get clipped mid-stroke by the canvas circular clip.
-    // closePath is only safe when the polygon was fully visible — if any point
-    // was on the back hemisphere the pen was lifted mid-ring, and closePath would
-    // draw a straight canvas line from the last visible point back to the first,
-    // creating a diagonal slash across the globe (classic anti-meridian artifact).
-    // canvas fill() auto-closes open paths, so omitting closePath is safe for fill.
+    // closePath is intentionally omitted: fill() auto-closes subpaths internally,
+    // and calling closePath() for polygons that span the anti-meridian (Russia,
+    // Antarctica) draws a straight canvas line across the globe face.
     ctx.fillStyle = colors.land; ctx.strokeStyle = colors.landStroke; ctx.lineWidth = 0.7;
     for (const ring of LAND_POLYGONS) {
       ctx.beginPath();
-      let penDown = false, clipped = false;
+      let penDown = false;
       for (const [lat, lng] of ring) {
         const p = ortho(lat, lng, rot.lat, rot.lng);
-        if (p.z < -0.05) { if (penDown) clipped = true; penDown = false; continue; }
+        if (p.z < -0.05) { penDown = false; continue; }
         const { cx, cy } = toCanvas(p, R);
         if (!penDown) { ctx.moveTo(cx, cy); penDown = true; } else ctx.lineTo(cx, cy);
       }
-      if (!clipped) ctx.closePath();
       ctx.fill(); ctx.stroke();
     }
 
@@ -488,14 +485,13 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     ctx.lineWidth = 0.7;
     for (const ring of LAKE_POLYGONS) {
       ctx.beginPath();
-      let lpenDown = false, lclipped = false;
+      let penDown = false;
       for (const [lat, lng] of ring) {
         const p = ortho(lat, lng, rot.lat, rot.lng);
-        if (p.z < -0.05) { if (lpenDown) lclipped = true; lpenDown = false; continue; }
+        if (p.z < -0.05) { penDown = false; continue; }
         const { cx, cy } = toCanvas(p, R);
-        if (!lpenDown) { ctx.moveTo(cx, cy); lpenDown = true; } else ctx.lineTo(cx, cy);
+        if (!penDown) { ctx.moveTo(cx, cy); penDown = true; } else ctx.lineTo(cx, cy);
       }
-      if (!lclipped) ctx.closePath();
       ctx.fill(); ctx.stroke();
     }
 
