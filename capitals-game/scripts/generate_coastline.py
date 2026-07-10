@@ -87,6 +87,17 @@ for feature in land_data['features']:
 
 lake_polygons = fetch_polygons(f'{BASE_URL}/ne_50m_lakes.geojson', min_pts=MIN_LAKE_PTS)
 
+# Caspian Sea lives in geography_marine_polys, not lakes — add it explicitly
+print('Fetching Caspian Sea from ne_50m_geography_marine_polys.geojson ...')
+with urllib.request.urlopen(f'{BASE_URL}/ne_50m_geography_marine_polys.geojson', timeout=60) as resp:
+    marine = json.load(resp)
+for feat in marine['features']:
+    name = feat['properties'].get('name', '') or ''
+    if 'Caspian' in name:
+        ring = feat['geometry']['coordinates'][0]
+        lake_polygons.append(ring_to_latlng(ring))
+        print(f'  Added: {name} ({len(ring)} pts)')
+
 combined = ' '.join(paths)
 print(f'Land: {len(land_polygons)} polygons, Lakes: {len(lake_polygons)} polygons')
 
