@@ -258,6 +258,13 @@
       font-weight: 700;
       color: var(--text-highlight);
     }
+    .round-header .diff-stars {
+      letter-spacing: 0.05em;
+      color: #f59e0b;
+    }
+    .round-header .diff-stars .empty {
+      opacity: 0.25;
+    }
 
     /* Input */
     .input-wrap { position: relative; }
@@ -623,9 +630,12 @@
 
   function renderRoundHeader() {
     const score = roundResults.reduce((s, r) => s + r.score, 0);
+    const diff = targets[currentRound]?.difficulty ?? 0;
+    const stars = '★'.repeat(diff) + `<span class="empty">${'★'.repeat(5 - diff)}</span>`;
     document.getElementById('round-header').innerHTML = `
       <div class="round-header">
         <span>Capital ${currentRound + 1} of ${ROUNDS}</span>
+        <span class="diff-stars">${stars}</span>
         <span class="round-score">${score} pts</span>
       </div>
     `;
