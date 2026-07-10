@@ -287,7 +287,9 @@ const EARTH_R = 6371;   // km, used to convert ring radii to angular radians
 // the active theme (.light-theme on body vs default dark).
 // Called once on globe creation and again whenever applyTheme() is invoked.
 function getThemeColors() {
-  const s = getComputedStyle(document.documentElement);
+  // Read from body, not documentElement — the theme class (.light-theme) is on
+  // <body>, and CSS custom properties don't cascade up to the parent <html>.
+  const s = getComputedStyle(document.body);
   const get = v => s.getPropertyValue(v).trim();
   return {
     ocean:      get('--globe-ocean'),
