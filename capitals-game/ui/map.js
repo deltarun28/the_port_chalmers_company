@@ -459,41 +459,64 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     // Ocean base colour
     ctx.fillStyle = colors.ocean; ctx.fillRect(0, 0, SIZE, SIZE);
 
-    // Land polygons — each ring is a closed polygon, rendered fill + stroke.
-    // -0.05 threshold (not 0): accept points just past the limb so edges near
-    // the horizon don't get clipped mid-stroke by the canvas circular clip.
-    // closePath is intentionally omitted: fill() auto-closes subpaths internally,
-    // and calling closePath() for polygons that span the anti-meridian (Russia,
-    // Antarctica) draws a straight canvas line across the globe face.
-    ctx.fillStyle = colors.land; ctx.strokeStyle = colors.landStroke; ctx.lineWidth = 0.7;
-    for (const ring of LAND_POLYGONS) {
-      ctx.beginPath();
-      let penDown = false;
+    // Renders one polygon ring onto the canvas.
+    // When a ring has points on the back hemisphere the visible portion is one or
+    // more arcs.  fill() implicitly closes each subpath with a STRAIGHT line,
+    // which for large polygons (Russia, Americas, Antarctica) cuts diagonally
+    // across the globe face.  The fix: collect visible segments, then connect
+    // consecutive segments with an arc along the horizon circle instead of a
+    // straight line.  The stroke is drawn separately (segments only, no arcs) so
+    // we don't paint a coloured rim around the horizon.
+    function drawRing(ring, fillColor, strokeColor) {
+      // Split ring into runs of consecutive visible points.
+      const segs = [];
+      let cur = null, hadInvisible = false;
       for (const [lat, lng] of ring) {
         const p = ortho(lat, lng, rot.lat, rot.lng);
-        if (p.z < -0.05) { penDown = false; continue; }
-        const { cx, cy } = toCanvas(p, R);
-        if (!penDown) { ctx.moveTo(cx, cy); penDown = true; } else ctx.lineTo(cx, cy);
+        if (p.z < -0.05) {
+          hadInvisible = true;
+          if (cur) { segs.push(cur); cur = null; }
+        } else {
+          const { cx, cy } = toCanvas(p, R);
+          (cur || (cur = [])).push([cx, cy]);
+        }
       }
-      ctx.fill(); ctx.stroke();
+      if (cur) segs.push(cur);
+      if (!segs.length) return;
+
+      // Helper: arc from canvas point a to b via the horizon circle (shorter arc).
+      function horizonArc(a, b) {
+        const a1 = Math.atan2(a[1] - CY, a[0] - CX);
+        const a2 = Math.atan2(b[1] - CY, b[0] - CX);
+        const cw = ((a2 - a1) + 2 * Math.PI) % (2 * Math.PI);
+        ctx.arc(CX, CY, R, a1, a2, cw > Math.PI);
+      }
+
+      // --- Fill path (segments joined by horizon arcs) ---
+      ctx.fillStyle = fillColor;
+      ctx.beginPath();
+      ctx.moveTo(segs[0][0][0], segs[0][0][1]);
+      for (let i = 1; i < segs[0].length; i++) ctx.lineTo(segs[0][i][0], segs[0][i][1]);
+      for (let s = 1; s < segs.length; s++) {
+        horizonArc(segs[s - 1][segs[s - 1].length - 1], segs[s][0]);
+        for (const [cx, cy] of segs[s]) ctx.lineTo(cx, cy);
+      }
+      if (hadInvisible) horizonArc(segs[segs.length - 1][segs[segs.length - 1].length - 1], segs[0][0]);
+      ctx.fill();
+
+      // --- Stroke path (segments only, no arcs) ---
+      ctx.strokeStyle = strokeColor;
+      ctx.beginPath();
+      for (const seg of segs) {
+        ctx.moveTo(seg[0][0], seg[0][1]);
+        for (let i = 1; i < seg.length; i++) ctx.lineTo(seg[i][0], seg[i][1]);
+      }
+      ctx.stroke();
     }
 
-    // Lakes: drawn over land in ocean colour to punch water bodies out of land,
-    // then given a faint blue stroke so shorelines like the Caspian Sea read as water.
-    ctx.fillStyle = colors.lake;
-    ctx.strokeStyle = colors.lakeStroke;
     ctx.lineWidth = 0.7;
-    for (const ring of LAKE_POLYGONS) {
-      ctx.beginPath();
-      let penDown = false;
-      for (const [lat, lng] of ring) {
-        const p = ortho(lat, lng, rot.lat, rot.lng);
-        if (p.z < -0.05) { penDown = false; continue; }
-        const { cx, cy } = toCanvas(p, R);
-        if (!penDown) { ctx.moveTo(cx, cy); penDown = true; } else ctx.lineTo(cx, cy);
-      }
-      ctx.fill(); ctx.stroke();
-    }
+    for (const ring of LAND_POLYGONS)  drawRing(ring, colors.land,  colors.landStroke);
+    for (const ring of LAKE_POLYGONS)  drawRing(ring, colors.lake,  colors.lakeStroke);
 
     if (difficulty.showGrid)  drawGlobeGrid();
     if (difficulty.showRings) drawGlobeRings();
