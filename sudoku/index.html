@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Sudoku</title>
+  <meta name="description" content="Sudoku — offline, ad-free, no tracking. Installs as an app and plays with no network connection." />
+
+  <!-- PWA: manifest + icons. theme-color is kept in sync with the active theme
+       by applyTheme() so the installed app's title bar matches. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0a0e1a" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <style>
+    /* ── Theme tokens ─────────────────────────────────────────────────────────
+       Shared palette with the rest of the Port Chalmers site: :root is the
+       default night-sky dark theme, html.light-theme is the high-contrast
+       outdoor mode.                                                            */
+    :root {
+      --bg-base:        #0a0e1a;
+      --bg-card:        #0f1e30;
+      --bg-hover:       #163d5e;
+      --border:         #2e7ab5;
+      --border-subtle:  #163d5e;
+      --text-primary:   #e8eaf6;
+      --text-secondary: #5c9fd4;
+      --text-muted:     #8ab4cc;
+      --text-highlight: #a8d8f0;
+      --bg-won:  #052e16;  --border-won:  #22c55e;  --text-won:  #86efac;
+      --bg-fail: #1a0f0f;  --border-fail: #7f1d1d;  --text-fail: #fca5a5;
+
+      /* Board */
+      --cell-bg:       #0f1e30;   /* empty cell */
+      --cell-peer:     #14293f;   /* shares a unit with the selection */
+      --cell-same:     #1c3d5c;   /* holds the same digit as the selection */
+      --cell-selected: #235f92;
+      --rule:          #1e3a52;   /* thin lines between cells */
+      --rule-box:      #2e7ab5;   /* thick lines between 3x3 boxes */
+      --digit-given:   #e8eaf6;   /* clues: the puzzle's own digits */
+      --digit-user:    #5c9fd4;   /* digits you placed */
+      --digit-note:    #6f8ba3;
+    }
+
+    html.light-theme {
+      --bg-base:        #d8e8f5;
+      --bg-card:        #ffffff;
+      --bg-hover:       #b8d4ee;
+      --border:         #2e7ab5;
+      --border-subtle:  #90b8d8;
+      --text-primary:   #06111e;
+      --text-secondary: #1a4d80;
+      --text-muted:     #2d6fa8;
+      --text-highlight: #0a3560;
+      --bg-won:  #dcfce7;  --border-won:  #16a34a;  --text-won:  #14532d;
+      --bg-fail: #fee2e2;  --border-fail: #dc2626;  --text-fail: #7f1d1d;
+
+      --cell-bg:       #ffffff;
+      --cell-peer:     #e4eff9;
+      --cell-same:     #bfdcf5;
+      --cell-selected: #7fb8e6;
+      --rule:          #b6cfe4;
+      --rule-box:      #2e7ab5;
+      --digit-given:   #06111e;
+      --digit-user:    #1a4d80;
+      --digit-note:    #5c7d99;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 1rem 0.75rem calc(1rem + env(safe-area-inset-bottom));
+      overscroll-behavior: contain;
+      transition: background 0.25s, color 0.25s;
+    }
+
+    header, .controls, .status, .pad, .actions, .banner, footer {
+      width: 100%;
+      max-width: 460px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .home { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
+    .home:hover { color: var(--text-highlight); }
+
+    button, select {
+      font: inherit;
+      color: var(--text-primary);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 0.5rem 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover, select:hover { background: var(--bg-hover); border-color: var(--border); }
+    button.active {
+      background: var(--bg-hover);
+      border-color: var(--border);
+      color: var(--text-highlight);
+    }
+    button:disabled { opacity: 0.4; cursor: default; }
+    button:disabled:hover { background: var(--bg-card); border-color: var(--border-subtle); }
+
+    .controls { display: flex; gap: 0.5rem; align-items: center; }
+    .controls select { flex: 1; }
+
+    .status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .status strong { color: var(--text-highlight); font-weight: 600; }
+
+    /* ── Board ────────────────────────────────────────────────────────────── */
+    .grid {
+      --size: min(460px, calc(100vw - 1.5rem));
+      width: var(--size);
+      height: var(--size);
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      grid-template-rows: repeat(9, 1fr);
+      background: var(--rule);
+      border: 3px solid var(--rule-box);
+      border-radius: 8px;
+      overflow: hidden;
+      gap: 1px;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cell {
+      position: relative;
+      border: none;
+      border-radius: 0;
+      padding: 0;
+      background: var(--cell-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    /* Box rules are drawn as an inset shadow rather than a border so they don't
+       take part in the grid's own sizing — every cell stays exactly square. */
+    .cell.box-left { box-shadow: inset 2px 0 0 var(--rule-box); }
+    .cell.box-top  { box-shadow: inset 0 2px 0 var(--rule-box); }
+    .cell.box-left.box-top { box-shadow: inset 2px 0 0 var(--rule-box), inset 0 2px 0 var(--rule-box); }
+
+    .cell:hover   { background: var(--cell-peer); }
+    .cell.peer    { background: var(--cell-peer); }
+    .cell.same    { background: var(--cell-same); }
+    .cell.selected { background: var(--cell-selected); }
+
+    .val {
+      font-size: calc(var(--size) / 18);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .cell.given .val { color: var(--digit-given); font-weight: 700; }
+    .cell.user  .val { color: var(--digit-user);  font-weight: 500; }
+    /* The selected cell's fill is close to the user-digit blue, so a digit
+       sitting on it needs the high-contrast colour or it disappears. */
+    .cell.selected .val { color: var(--digit-given); }
+    .cell.conflict .val { color: var(--text-fail); }
+    .cell.conflict { background: var(--bg-fail); }
+    .cell.conflict.selected { background: var(--border-fail); }
+
+    /* Pencil marks: a 3x3 mini-grid inside the cell, digit d always in the same
+       spot so a glance tells you which candidates are left. */
+    .notes {
+      position: absolute;
+      inset: 2px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      font-size: calc(var(--size) / 46);
+      line-height: 1;
+      color: var(--digit-note);
+      pointer-events: none;
+    }
+    .notes span { display: flex; align-items: center; justify-content: center; }
+
+    /* ── Number pad ───────────────────────────────────────────────────────── */
+    .pad {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 0.3rem;
+    }
+    .pad button {
+      padding: 0.7rem 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--digit-user);
+    }
+    /* All nine of a digit placed — nothing left to do with it. */
+    .pad button.done { opacity: 0.3; }
+
+    .actions { display: flex; gap: 0.4rem; }
+    .actions button { flex: 1; font-size: 0.85rem; padding: 0.6rem 0.3rem; }
+
+    /* ── Result banner ────────────────────────────────────────────────────── */
+    .banner {
+      text-align: center;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+      display: none;
+    }
+    .banner.won { display: block; background: var(--bg-won); border-color: var(--border-won); color: var(--text-won); }
+
+    footer {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      line-height: 1.6;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 0.75rem;
+      margin-top: auto;
+    }
+    footer .best { color: var(--text-secondary); }
+    footer kbd {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 0 0.3rem;
+      font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🔢 Sudoku</h1>
+    <a class="home" href="../index.html">← Port Chalmers</a>
+  </header>
+
+  <div class="controls">
+    <select id="level" aria-label="Difficulty"></select>
+    <button id="new">New</button>
+    <button id="theme" title="Toggle light / dark theme">🌙</button>
+  </div>
+
+  <div class="status">
+    <span id="meta"></span>
+    <span><strong id="timer">0:00</strong></span>
+  </div>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="pad" id="pad"></div>
+
+  <div class="actions">
+    <button id="notes" aria-pressed="false" title="Pencil-mark mode">✏️ Notes</button>
+    <button id="undo">↶ Undo</button>
+    <button id="erase">⌫ Erase</button>
+    <button id="hint">💡 Hint</button>
+  </div>
+
+  <footer>
+    <div class="best" id="best"></div>
+    <div>
+      <kbd>1</kbd>–<kbd>9</kbd> place · <kbd>Space</kbd> notes mode ·
+      <kbd>⌫</kbd> erase · <kbd>Ctrl+Z</kbd> undo · arrows to move
+    </div>
+    <div>Runs fully offline. No ads, no accounts, no data leaves your device.</div>
+  </footer>
+
+<script type="module">
+  import {
+    LEVELS, newGame, restore, save, clearSave,
+    setValue, toggleNote, erase as eraseCell, undo, hint, countPlaced, isGiven,
+  } from './lib/game.js';
+  import { createGrid } from './ui/grid.js';
+  import * as stats from './lib/stats.js';
+
+  const $ = id => document.getElementById(id);
+  const levelEl  = $('level');
+  const themeEl  = $('theme');
+  const timerEl  = $('timer');
+  const metaEl   = $('meta');
+  const bannerEl = $('banner');
+  const bestEl   = $('best');
+  const notesEl  = $('notes');
+  const undoEl   = $('undo');
+  const padEl    = $('pad');
+
+  const PREFS_KEY = 'sudoku.prefs.v1';
+
+  // Preferences (difficulty, theme) are the only thing persisted besides best
+  // times and the in-progress board, and none of it leaves localStorage.
+  function loadPrefs() {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY)) ?? {}; }
+    catch { return {}; }
+  }
+  function savePrefs(patch) {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ ...loadPrefs(), ...patch })); }
+    catch { /* storage blocked — prefs just won't survive a reload */ }
+  }
+
+  const prefs = loadPrefs();
+  let levelKey = LEVELS[prefs.level] ? prefs.level : 'easy';
+  let game = null;
+  let selected = -1;
+  let notesMode = false;
+  let ticker = null;
+  let startedAt = 0;      // wall-clock anchor; see tick()
+
+  // ── Theme ────────────────────────────────────────────────────────────────
+  function applyTheme(light) {
+    document.documentElement.classList.toggle('light-theme', light);
+    themeEl.textContent = light ? '☀️' : '🌙';
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg-base').trim();
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', bg);
+  }
+  applyTheme(prefs.light === true);
+
+  themeEl.addEventListener('click', () => {
+    const light = !document.documentElement.classList.contains('light-theme');
+    applyTheme(light);
+    savePrefs({ light });
+  });
+
+  // ── Difficulty ───────────────────────────────────────────────────────────
+  for (const [key, level] of Object.entries(LEVELS)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = level.label;
+    levelEl.appendChild(opt);
+  }
+  levelEl.value = levelKey;
+  levelEl.addEventListener('change', () => {
+    levelKey = levelEl.value;
+    savePrefs({ level: levelKey });
+    start();
+  });
+
+  // ── Clock ────────────────────────────────────────────────────────────────
+  // game.elapsed is the source of truth (it's what gets saved and resumed), and
+  // startedAt is rebased whenever the ticker restarts. Deriving the display from
+  // a wall-clock difference means a throttled background tab can't lose seconds.
+  const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  let baseElapsed = 0;
+
+  function tick() {
+    game.elapsed = baseElapsed + Math.floor((Date.now() - startedAt) / 1000);
+    timerEl.textContent = fmt(game.elapsed);
+  }
+  function startClock() {
+    stopClock();
+    baseElapsed = game.elapsed;
+    startedAt = Date.now();
+    ticker = setInterval(tick, 250);
+  }
+  function stopClock() {
+    clearInterval(ticker);
+    ticker = null;
+  }
+
+  // ── Board ────────────────────────────────────────────────────────────────
+  const grid = createGrid($('grid'), {
+    onSelect: i => { selected = i; render(); },
+  });
+
+  // Number pad: 1–9. Placing a digit respects notes mode.
+  for (let d = 1; d <= 9; d++) {
+    const btn = document.createElement('button');
+    btn.textContent = d;
+    btn.dataset.d = d;
+    btn.addEventListener('click', () => enter(d));
+    padEl.appendChild(btn);
+  }
+
+  function enter(digit) {
+    if (!game || game.status !== 'playing' || selected < 0) return;
+    if (isGiven(game, selected)) return;
+    if (notesMode) toggleNote(game, selected, digit);
+    else setValue(game, selected, digit);
+    afterMove();
+  }
+
+  function afterMove() {
+    render();
+    save(game);
+    if (game.status === 'won') finish();
+  }
+
+  function render() {
+    grid.render(game, selected);
+
+    metaEl.innerHTML =
+      `<strong>${LEVELS[game.levelKey].label}</strong> · ${game.clues} clues · ` +
+      `mistakes <strong>${game.mistakes}</strong>` +
+      (game.hints ? ` · hints <strong>${game.hints}</strong>` : '');
+
+    // Grey out a digit once all nine are on the board.
+    for (const btn of padEl.children) {
+      btn.classList.toggle('done', countPlaced(game, Number(btn.dataset.d)) === 9);
+    }
+    undoEl.disabled = game.history.length === 0;
+  }
+
+  function finish() {
+    stopClock();
+    clearSave();                      // a finished board isn't worth resuming
+    const { isBest } = stats.recordWin(game.levelKey, game.elapsed, game.hints);
+    bannerEl.className = 'banner won';
+    bannerEl.textContent = isBest
+      ? `Solved in ${fmt(game.elapsed)} — new best time!`
+      : `Solved in ${fmt(game.elapsed)}.` + (game.hints ? ' (Hints used.)' : '');
+    renderBest();
+  }
+
+  function renderBest() {
+    const { best, won } = stats.load();
+    const parts = Object.entries(LEVELS).map(([key, level]) => {
+      const b = best[key];
+      return `${level.label}: ${b == null ? '—' : fmt(b)}`;
+    });
+    const total = Object.values(won).reduce((a, b) => a + b, 0);
+    bestEl.textContent = `Best times — ${parts.join(' · ')}   (${total} solved)`;
+  }
+
+  /** Start a new puzzle, or resume the saved one if `resume` is given. */
+  function start(resume = null) {
+    game = resume ?? newGame(levelKey);
+    levelKey = game.levelKey;
+    levelEl.value = levelKey;
+    selected = -1;
+
+    if (!resume) stats.recordStart(levelKey);
+
+    grid.mount();
+    bannerEl.className = 'banner';
+    bannerEl.textContent = '';
+    timerEl.textContent = fmt(game.elapsed);
+    startClock();
+    render();
+    renderBest();
+    save(game);
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+  $('new').addEventListener('click', () => start());
+
+  notesEl.addEventListener('click', () => {
+    notesMode = !notesMode;
+    notesEl.classList.toggle('active', notesMode);
+    notesEl.setAttribute('aria-pressed', String(notesMode));
+  });
+
+  undoEl.addEventListener('click', () => { undo(game); afterMove(); });
+  $('erase').addEventListener('click', () => {
+    if (selected >= 0) { eraseCell(game, selected); afterMove(); }
+  });
+  $('hint').addEventListener('click', () => {
+    if (selected >= 0) { hint(game, selected); afterMove(); }
+  });
+
+  // ── Keyboard ─────────────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('select')) return;
+
+    if (e.key >= '1' && e.key <= '9') { enter(Number(e.key)); return; }
+
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault();
+      if (selected >= 0) { eraseCell(game, selected); afterMove(); }
+      return;
+    }
+    if (e.key === ' ') { e.preventDefault(); notesEl.click(); return; }
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      undo(game);
+      afterMove();
+      return;
+    }
+
+    const move = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -9, ArrowDown: 9 }[e.key];
+    if (move) {
+      e.preventDefault();
+      // Start from the top-left if nothing is selected yet, and clamp rather
+      // than wrapping — left from column 0 shouldn't jump up a row.
+      if (selected < 0) selected = 0;
+      else {
+        const next = selected + move;
+        const sameRow = Math.abs(move) === 1
+          ? Math.floor(next / 9) === Math.floor(selected / 9)
+          : true;
+        if (next >= 0 && next < 81 && sameRow) selected = next;
+      }
+      render();
+    }
+  });
+
+  // Pause the interval while backgrounded, and bank the elapsed time so it
+  // resumes exactly where it left off.
+  document.addEventListener('visibilitychange', () => {
+    if (!game || game.status !== 'playing') return;
+    if (document.hidden) {
+      tick();
+      stopClock();
+      save(game);
+    } else {
+      startClock();
+    }
+  });
+
+  // Resume an unfinished board if there is one, otherwise deal a fresh puzzle.
+  start(restore());
+
+  // ── PWA ──────────────────────────────────────────────────────────────────
+  // Registered last so the service worker's precache pass never competes with
+  // the first paint. sw.js is what makes the game playable with no network.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(err =>
+      console.warn('Service worker registration failed:', err));
+  }
+</script>
+
+</body>
+</html>
