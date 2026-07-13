@@ -8,8 +8,11 @@
 //
 // Keyboard nav: ↑↓ move through suggestions, Enter commits, Escape dismisses.
 // Matching is substring across capital name, country name, and aliases.
+// Enter with no suggestion highlighted resolves the raw text via validator.js,
+// so plain typing + Enter submits a guess without touching the arrow keys.
 
 import { renderFlag } from '../lib/flags.js';
+import { validate } from '../lib/validator.js';
 
 export function createInput(container, capitals, onGuess) {
   container.innerHTML = `
@@ -67,6 +70,10 @@ export function createInput(container, capitals, onGuess) {
       if (activeIndex >= 0) {
         const matches = getSuggestions(input.value);
         if (matches[activeIndex]) commit(matches[activeIndex]);
+      } else {
+        // Nothing highlighted — resolve the typed text directly
+        const hit = validate(input.value, capitals);
+        if (hit) commit(hit);
       }
     } else if (e.key === 'Escape') {
       list.style.display = 'none';

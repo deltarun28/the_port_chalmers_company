@@ -50,8 +50,18 @@ capitals-game/
 │   ├── results.js           ← guess history cards
 │   └── share.js             ← end-of-game score card
 │
-└── index.html               ← wires everything together, no logic lives here
+├── index.html               ← wires everything together, no logic lives here
+│
+├── manifest.webmanifest     ← PWA manifest (name, icons, standalone display)
+├── sw.js                    ← service worker: precache + offline (bump CACHE_VERSION on deploy)
+└── icons/                   ← PWA icon set (192/512/maskable/apple-touch)
 ```
+
+**PWA note:** the game is installable (Add to Home Screen / install prompt) and
+plays offline. `sw.js` precaches the app shell and data files; flag SVGs from
+the CDN are cached lazily as they render. When deploying any change to a
+precached file, bump `CACHE_VERSION` in `sw.js` or returning players will keep
+the old version. Install/service-worker features require HTTPS (or localhost).
 
 ---
 

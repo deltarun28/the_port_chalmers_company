@@ -30,7 +30,10 @@ function roundEmoji(guesses, won) {
 }
 
 export function share(container, rounds, difficultyKey) {
-  const date = new Date().toISOString().slice(0, 10);
+  // Local date, not toISOString() (UTC) — the daily target is seeded from the
+  // local date in index.html, and the share card must show the same day
+  const d = new Date();
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const total = rounds.reduce((s, r) => s + r.score, 0);
   const diffLabel = difficultyKey[0].toUpperCase() + difficultyKey.slice(1);
 
@@ -57,7 +60,14 @@ export function share(container, rounds, difficultyKey) {
     </div>
   `;
   container.querySelector('#copy-btn').addEventListener('click', async () => {
-    await navigator.clipboard.writeText(clipText);
-    container.querySelector('#copy-btn').textContent = 'Copied!';
+    const btn = container.querySelector('#copy-btn');
+    try {
+      await navigator.clipboard.writeText(clipText);
+      btn.textContent = 'Copied!';
+    } catch {
+      // Clipboard API unavailable (insecure context) or permission denied —
+      // the text is already on screen, so tell the player to copy it manually
+      btn.textContent = 'Copy failed — select the text above';
+    }
   });
 }
