@@ -4,6 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Capitals Game</title>
+
+  <!-- PWA: manifest + icons. theme-color is kept in sync with the active
+       theme by applyTheme() so the installed app's title bar matches. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0a0e1a" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css" />
   <style>
     /* flag-icons sizing — the library uses em-based width, so it scales with
@@ -555,6 +566,9 @@
     document.documentElement.classList.toggle('light-theme', !isDark);
     themeBtn.textContent = isDark ? '☀️ Outdoor' : '🌙 Dark';
     themeBtn.title = isDark ? 'Switch to outdoor mode' : 'Switch to dark mode';
+    // Keep the installed-app title bar colour in sync with the theme
+    document.querySelector('meta[name="theme-color"]')
+      .setAttribute('content', isDark ? '#0a0e1a' : '#d8e8f5');
     if (mapCtrl) mapCtrl.applyTheme(); // redraw globe with new canvas colours
   }
 
@@ -614,6 +628,7 @@
 
   function rebuildMap() {
     const mapContainer = document.getElementById('map-container');
+    if (mapCtrl) mapCtrl.destroy(); // remove the old globe's window listeners
     mapContainer.innerHTML = '';
     mapCtrl = createMap(mapContainer, capitals, handleGuess, DIFFICULTIES[difficultyKey]);
     // Ensure the freshly built globe uses the current theme colours
@@ -645,7 +660,14 @@
     `;
   }
 
+  // Increments on every startSession() so that a session started while
+  // distances.json is still loading can tell whether it is still the current
+  // one when the fetch resolves.  Without this, switching mode/difficulty
+  // during the load queues one startRound() per queued .then().
+  let sessionSeq = 0;
+
   function startSession() {
+    const seq = ++sessionSeq;
     targets = getTargets();
     currentRound = 0;
     roundResults = [];
@@ -658,7 +680,10 @@
       document.getElementById('results-container').innerHTML =
         '<div style="text-align:center;color:var(--text-secondary);padding:1.5rem;font-size:0.9rem">Loading…</div>';
       inputCtrl.disable();
-      distancesPromise.then(d => { distances = d; startRound(); });
+      distancesPromise.then(d => {
+        distances = d;
+        if (seq === sessionSeq) startRound(); // stale session — a newer one took over
+      });
     }
   }
 
@@ -758,6 +783,15 @@
   newGameBtn.addEventListener('click', startSession);
 
   startSession();
+
+  // ── PWA ───────────────────────────────────────────────────────────────────
+  // Registered after startSession so the service worker's precache pass never
+  // competes with the game's own startup fetches. sw.js handles offline play;
+  // manifest.webmanifest makes the game installable.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(err =>
+      console.warn('Service worker registration failed:', err));
+  }
 </script>
 
 </body>

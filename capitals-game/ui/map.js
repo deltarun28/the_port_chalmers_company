@@ -1,7 +1,8 @@
 // ── Globe renderer (and legacy flat SVG map, currently unused) ───────────────
 //
 // Public API (exported at the bottom):
-//   createMap(container, capitals, onGuess, difficulty) → { update, reset, applyTheme }
+//   createMap(container, capitals, onGuess, difficulty)
+//     → { update, reset, applyTheme, destroy }
 //
 //   All difficulty modes currently have globeView:true, so createGlobe() is
 //   always called.  createFlatMap() is dead code but kept for reference.
@@ -12,6 +13,7 @@
 //     update(guesses, status, target) — recolours dots and redraws rings
 //     reset()                         — restores all dots to starting state
 //     applyTheme()                    — re-reads CSS theme variables and redraws
+//     destroy()                       — removes window listeners; call before rebuilding
 //
 // Globe coordinate systems:
 //   [lat, lng]  — geographic degrees (source: data/land_polygons.js, capitals[])
@@ -150,7 +152,8 @@ function createFlatMap(container, capitals, onGuess, difficulty) {
     dragStart = { x: e.clientX, y: e.clientY, vbx: vb.x, vby: vb.y };
     svg.style.cursor = 'grabbing';
   });
-  window.addEventListener('mousemove', e => {
+  // Named so destroy() can remove them (window listeners outlive the container)
+  function onWindowMouseMove(e) {
     if (!dragging) return;
     const rect = svg.getBoundingClientRect();
     const dx = (e.clientX - dragStart.x) / rect.width  * vb.w;
@@ -158,8 +161,10 @@ function createFlatMap(container, capitals, onGuess, difficulty) {
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDragged = true;
     vb.x = dragStart.vbx - dx; vb.y = dragStart.vby - dy;
     clamp(); applyViewBox();
-  });
-  window.addEventListener('mouseup', () => { dragging = false; svg.style.cursor = 'grab'; });
+  }
+  function onWindowMouseUp() { dragging = false; svg.style.cursor = 'grab'; }
+  window.addEventListener('mousemove', onWindowMouseMove);
+  window.addEventListener('mouseup', onWindowMouseUp);
 
   let lastTouches = null;
   svg.addEventListener('touchstart', e => {
@@ -270,6 +275,10 @@ function createFlatMap(container, capitals, onGuess, difficulty) {
       });
     },
     applyTheme() {}, // flat map has no canvas to redraw
+    destroy() {
+      window.removeEventListener('mousemove', onWindowMouseMove);
+      window.removeEventListener('mouseup', onWindowMouseUp);
+    },
   };
 }
 
@@ -542,6 +551,15 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     });
   }
 
+  // Coalesces redraws to one per display frame.  Drag/wheel/pinch events can
+  // fire faster than the refresh rate, and each draw() re-projects every
+  // polygon vertex — drawing more often than the screen updates is pure waste.
+  let rafId = 0;
+  function scheduleDraw() {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => { rafId = 0; draw(); });
+  }
+
   // Convert a mouse/touch event position to canvas pixel coordinates,
   // accounting for the canvas being CSS-scaled to fill its container.
   function canvasXY(e) {
@@ -552,10 +570,13 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     };
   }
 
-  // Returns the nearest capital within hitPx pixels, or null.
+  // Returns the nearest *visible* capital within hitPx pixels, or null.
+  // Visibility matters on hard mode: hidden dots must not respond to hover
+  // (tooltip would reveal the hidden capitals) or clicks (blind guesses).
   function findNearest(cx, cy, hitPx) {
     let best = null, bestD2 = hitPx * hitPx;
     for (const cap of capitals) {
+      if (!dots.get(cap.capital).visible) continue;
       const p = ortho(cap.lat, cap.lng, rot.lat, rot.lng);
       if (p.z < 0) continue; // back hemisphere — not clickable
       const { cx: px, cy: py } = toCanvas(p, R);
@@ -568,7 +589,7 @@ function createGlobe(container, capitals, onGuess, difficulty) {
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
     zoom = Math.max(GLOBE_MIN, Math.min(GLOBE_MAX, zoom * (e.deltaY > 0 ? 1 / 1.18 : 1.18)));
-    draw();
+    scheduleDraw();
   }, { passive: false });
 
   let dragging = false, hasDragged = false, dragStart = null;
@@ -579,7 +600,9 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     canvas.style.cursor = 'grabbing';
   });
 
-  window.addEventListener('mousemove', e => {
+  // Window-level listeners (named so destroy() can remove them — the globe is
+  // rebuilt on every difficulty change and they would otherwise accumulate).
+  function onWindowMouseMove(e) {
     if (!dragging) return;
     const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasDragged = true;
@@ -593,10 +616,12 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     // Both match the feel of spinning a physical sphere.
     rot.lng = dragStart.lng - dx * deg;
     rot.lat = Math.max(-80, Math.min(80, dragStart.lat + dy * deg));
-    draw();
-  });
+    scheduleDraw();
+  }
+  function onWindowMouseUp() { dragging = false; canvas.style.cursor = 'grab'; }
 
-  window.addEventListener('mouseup', () => { dragging = false; canvas.style.cursor = 'grab'; });
+  window.addEventListener('mousemove', onWindowMouseMove);
+  window.addEventListener('mouseup', onWindowMouseUp);
 
   canvas.addEventListener('mousemove', e => {
     if (dragging) { tooltip.style.display = 'none'; return; }
@@ -621,38 +646,58 @@ function createGlobe(container, capitals, onGuess, difficulty) {
 
   // Touch handlers mirror mouse: single-finger drag rotates, two-finger pinch zooms
   let lastTouches = null;
+
+  // Anchors a single-finger rotation at the given touch's current position.
+  // Called on touchstart and again when a pinch collapses to one finger, so a
+  // rotation never reuses a stale anchor from an earlier gesture.
+  function anchorDrag(touch) {
+    dragStart = { x: touch.clientX, y: touch.clientY, lat: rot.lat, lng: rot.lng };
+  }
+
   canvas.addEventListener('touchstart', e => {
-    e.preventDefault(); hasDragged = false; lastTouches = e.touches;
-    if (e.touches.length === 1) dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, lat: rot.lat, lng: rot.lng };
+    e.preventDefault(); lastTouches = e.touches;
+    if (e.touches.length === 1) {
+      hasDragged = false;
+      anchorDrag(e.touches[0]);
+    } else {
+      hasDragged = true; // multi-finger gesture — never treat its end as a tap
+      dragStart = null;
+    }
   }, { passive: false });
 
   canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
-    if (e.touches.length === 1 && lastTouches.length === 1) {
+    if (e.touches.length === 1 && lastTouches.length === 1 && dragStart) {
       const dx = e.touches[0].clientX - dragStart.x, dy = e.touches[0].clientY - dragStart.y;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged = true;
       const deg = 90 / (rect.width * zoom * 0.5);
       rot.lng = dragStart.lng - dx * deg;
       rot.lat = Math.max(-80, Math.min(80, dragStart.lat + dy * deg));
-      draw();
+      scheduleDraw();
     } else if (e.touches.length === 2 && lastTouches.length === 2) {
+      hasDragged = true; // pinching is not a tap
       const prev = Math.hypot(lastTouches[0].clientX - lastTouches[1].clientX, lastTouches[0].clientY - lastTouches[1].clientY);
       const curr = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       zoom = Math.max(GLOBE_MIN, Math.min(GLOBE_MAX, zoom * (curr / prev)));
-      draw();
+      scheduleDraw();
     }
     lastTouches = e.touches;
   }, { passive: false });
 
   canvas.addEventListener('touchend', e => {
-    if (!hasDragged && e.changedTouches.length === 1) {
+    // Tap = single finger down and up with no drag and no other fingers left.
+    if (!hasDragged && e.changedTouches.length === 1 && e.touches.length === 0) {
       const rect = canvas.getBoundingClientRect();
       const x = (e.changedTouches[0].clientX - rect.left) * (SIZE / rect.width);
       const y = (e.changedTouches[0].clientY - rect.top)  * (SIZE / rect.height);
       const hit = findNearest(x, y, 22);
       if (hit) onGuess(hit);
     }
+    // Pinch collapsed to one finger — re-anchor so continued movement rotates
+    // from here instead of jumping to a stale (or null) anchor
+    if (e.touches.length === 1) anchorDrag(e.touches[0]);
+    lastTouches = e.touches;
   });
 
   const controls = document.createElement('div');
@@ -709,6 +754,16 @@ function createGlobe(container, capitals, onGuess, difficulty) {
     applyTheme() {
       colors = getThemeColors();
       draw();
+    },
+
+    // Tears down everything that outlives the container's DOM: the window
+    // listeners and any pending animation frame.  index.html must call this
+    // before rebuilding the map or the listeners accumulate on every rebuild.
+    destroy() {
+      window.removeEventListener('mousemove', onWindowMouseMove);
+      window.removeEventListener('mouseup', onWindowMouseUp);
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
     },
   };
 }
