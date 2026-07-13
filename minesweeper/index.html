@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Minesweeper</title>
+  <meta name="description" content="Minesweeper — offline, ad-free, no tracking. Installs as an app and plays with no network connection." />
+
+  <!-- PWA: manifest + icons. theme-color is kept in sync with the active theme
+       by applyTheme() so the installed app's title bar matches. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0a0e1a" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <style>
+    /* ── Theme tokens ─────────────────────────────────────────────────────────
+       Shared palette with the rest of the Port Chalmers site: :root is the
+       default night-sky dark theme, html.light-theme is the high-contrast
+       outdoor mode. Every colour below is a token — no literal colours in the
+       rules themselves.                                                        */
+    :root {
+      --bg-base:        #0a0e1a;
+      --bg-card:        #0f1e30;
+      --bg-hover:       #163d5e;
+      --border:         #2e7ab5;
+      --border-subtle:  #163d5e;
+      --text-primary:   #e8eaf6;
+      --text-secondary: #5c9fd4;
+      --text-muted:     #8ab4cc;
+      --text-highlight: #a8d8f0;
+      --bg-won:  #052e16;  --border-won:  #22c55e;  --text-won:  #86efac;
+      --bg-fail: #1a0f0f;  --border-fail: #7f1d1d;  --text-fail: #fca5a5;
+
+      /* Grid: hidden cells sit proud of the board, revealed cells sink into it.
+         These two need to stay clearly apart — telling covered from uncovered
+         at a glance is the whole game. */
+      --cell-hidden:      #21496f;
+      --cell-hidden-edge: #3a7cb8;
+      --cell-revealed:    #0a1420;
+      --cell-line:        #12283f;
+
+      /* Classic number colours, tuned for the dark board */
+      --n1: #60a5fa;  --n2: #4ade80;  --n3: #f87171;  --n4: #c084fc;
+      --n5: #fbbf24;  --n6: #22d3ee;  --n7: #e8eaf6;  --n8: #94a3b8;
+    }
+
+    html.light-theme {
+      --bg-base:        #d8e8f5;
+      --bg-card:        #ffffff;
+      --bg-hover:       #b8d4ee;
+      --border:         #2e7ab5;
+      --border-subtle:  #90b8d8;
+      --text-primary:   #06111e;
+      --text-secondary: #1a4d80;
+      --text-muted:     #2d6fa8;
+      --text-highlight: #0a3560;
+      --bg-won:  #dcfce7;  --border-won:  #16a34a;  --text-won:  #14532d;
+      --bg-fail: #fee2e2;  --border-fail: #dc2626;  --text-fail: #7f1d1d;
+
+      --cell-hidden:      #93bade;
+      --cell-hidden-edge: #ffffff;
+      --cell-revealed:    #f4f9fd;
+      --cell-line:        #b6cfe4;
+
+      --n1: #1d4ed8;  --n2: #15803d;  --n3: #b91c1c;  --n4: #6b21a8;
+      --n5: #a16207;  --n6: #0e7490;  --n7: #06111e;  --n8: #475569;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 0.75rem calc(1rem + env(safe-area-inset-bottom));
+      /* The grid handles its own scrolling; the page itself never scrolls
+         sideways, and a stray drag on the board must not pull-to-refresh. */
+      overscroll-behavior: contain;
+      transition: background 0.25s, color 0.25s;
+    }
+
+    header {
+      width: 100%;
+      max-width: 640px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .home {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .home:hover { color: var(--text-highlight); }
+
+    /* ── Controls ─────────────────────────────────────────────────────────── */
+    .controls, .status {
+      width: 100%;
+      max-width: 640px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    button, select {
+      font: inherit;
+      color: var(--text-primary);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 0.5rem 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    button:hover, select:hover { background: var(--bg-hover); border-color: var(--border); }
+    button.active {
+      background: var(--bg-hover);
+      border-color: var(--border);
+      color: var(--text-highlight);
+    }
+    select { padding-right: 0.5rem; }
+
+    .spacer { flex: 1; }
+
+    /* ── Status readouts ──────────────────────────────────────────────────── */
+    .status { justify-content: space-between; }
+
+    .readout {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 0.45rem 0.8rem;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--text-highlight);
+      min-width: 5.5rem;
+      justify-content: center;
+    }
+
+    #reset {
+      font-size: 1.35rem;
+      line-height: 1;
+      padding: 0.35rem 0.9rem;
+    }
+
+    /* ── The board ────────────────────────────────────────────────────────── */
+    /* Expert is 30 columns — far wider than a phone. Cells shrink to fit down to
+       a floor of 22px (still a usable tap target) and the board scrolls
+       horizontally past that rather than becoming unplayably small.            */
+    .board-wrap {
+      max-width: 100%;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      padding: 2px;
+    }
+
+    .grid {
+      --cell: max(22px, min(34px, calc((100vw - 2rem) / var(--cols))));
+      display: grid;
+      grid-template-columns: repeat(var(--cols), var(--cell));
+      gap: 2px;
+      background: var(--cell-line);
+      border: 2px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 2px;
+      margin: 0 auto;
+      width: max-content;
+      /* The board is a game surface: no text selection on a double tap, no
+         browser panning/zooming gestures stealing a long press. */
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cell {
+      width: var(--cell);
+      height: var(--cell);
+      padding: 0;
+      border: none;
+      border-radius: 2px;
+      font-size: calc(var(--cell) * 0.58);
+      font-weight: 700;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cell.hidden {
+      background: var(--cell-hidden);
+      box-shadow: inset 1px 1px 0 var(--cell-hidden-edge);
+    }
+    .cell.hidden:hover { background: var(--bg-hover); }
+
+    .cell.revealed {
+      background: var(--cell-revealed);
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .cell.flagged { color: var(--text-primary); }
+    .cell.wrong   { color: var(--text-fail); background: var(--bg-fail); }
+    .cell.mine    { background: var(--bg-fail); }
+    .cell.exploded { background: var(--border-fail); }
+
+    .cell.n1 { color: var(--n1); }  .cell.n2 { color: var(--n2); }
+    .cell.n3 { color: var(--n3); }  .cell.n4 { color: var(--n4); }
+    .cell.n5 { color: var(--n5); }  .cell.n6 { color: var(--n6); }
+    .cell.n7 { color: var(--n7); }  .cell.n8 { color: var(--n8); }
+
+    /* ── Result banner ────────────────────────────────────────────────────── */
+    .banner {
+      width: 100%;
+      max-width: 640px;
+      text-align: center;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+      display: none;
+    }
+    .banner.won  { display: block; background: var(--bg-won);  border-color: var(--border-won);  color: var(--text-won); }
+    .banner.lost { display: block; background: var(--bg-fail); border-color: var(--border-fail); color: var(--text-fail); }
+
+    footer {
+      width: 100%;
+      max-width: 640px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      line-height: 1.6;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 0.75rem;
+      margin-top: auto;
+    }
+    footer .best { color: var(--text-secondary); }
+    footer kbd {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 0 0.3rem;
+      font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>💣 Minesweeper</h1>
+    <a class="home" href="../index.html">← Port Chalmers</a>
+  </header>
+
+  <div class="controls">
+    <select id="level" aria-label="Difficulty"></select>
+    <button id="flag-mode" aria-pressed="false" title="Tap to flag instead of reveal">🚩 Flag</button>
+    <span class="spacer"></span>
+    <button id="theme" title="Toggle light / dark theme">🌙</button>
+  </div>
+
+  <div class="status">
+    <span class="readout" id="mines">🚩 0</span>
+    <button id="reset" title="New game">🙂</button>
+    <span class="readout" id="timer">⏱ 0:00</span>
+  </div>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="board-wrap">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <footer>
+    <div class="best" id="best"></div>
+    <div>
+      Right-click or long-press to flag · click a number to chord ·
+      <kbd>N</kbd> new game · <kbd>F</kbd> flag mode
+    </div>
+    <div>Runs fully offline. No ads, no accounts, no data leaves your device.</div>
+  </footer>
+
+<script type="module">
+  import { LEVELS, createGame, reveal, toggleFlag, chord, minesRemaining } from './lib/game.js';
+  import { createGrid } from './ui/grid.js';
+  import * as stats from './lib/stats.js';
+
+  const $ = id => document.getElementById(id);
+  const levelEl  = $('level');
+  const flagEl   = $('flag-mode');
+  const themeEl  = $('theme');
+  const minesEl  = $('mines');
+  const timerEl  = $('timer');
+  const resetEl  = $('reset');
+  const bannerEl = $('banner');
+  const bestEl   = $('best');
+
+  const PREFS_KEY = 'minesweeper.prefs.v1';
+
+  // Preferences (chosen difficulty, theme, flag mode) are the only thing we
+  // persist besides best times, and they never leave localStorage.
+  function loadPrefs() {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY)) ?? {}; }
+    catch { return {}; }
+  }
+  function savePrefs(patch) {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ ...loadPrefs(), ...patch })); }
+    catch { /* storage blocked — prefs just won't survive a reload */ }
+  }
+
+  const prefs = loadPrefs();
+  let levelKey = LEVELS[prefs.level] ? prefs.level : 'beginner';
+  let game = null;
+  let ticker = null;
+  let startedAt = 0;
+  let elapsed = 0;      // frozen at the end of a game so the final time sticks
+
+  // ── Theme ────────────────────────────────────────────────────────────────
+  function applyTheme(light) {
+    document.documentElement.classList.toggle('light-theme', light);
+    themeEl.textContent = light ? '☀️' : '🌙';
+    // Keep the installed app's title bar in step with the board.
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg-base').trim();
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', bg);
+  }
+  applyTheme(prefs.light === true);
+
+  themeEl.addEventListener('click', () => {
+    const light = !document.documentElement.classList.contains('light-theme');
+    applyTheme(light);
+    savePrefs({ light });
+  });
+
+  // ── Difficulty picker ────────────────────────────────────────────────────
+  for (const [key, level] of Object.entries(LEVELS)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${level.label} · ${level.rows}×${level.cols} · ${level.mines} mines`;
+    levelEl.appendChild(opt);
+  }
+  levelEl.value = levelKey;
+  levelEl.addEventListener('change', () => {
+    levelKey = levelEl.value;
+    savePrefs({ level: levelKey });
+    newGame();
+  });
+
+  // ── Flag mode ────────────────────────────────────────────────────────────
+  let flagMode = prefs.flagMode === true;
+  function applyFlagMode() {
+    flagEl.classList.toggle('active', flagMode);
+    flagEl.setAttribute('aria-pressed', String(flagMode));
+    grid.setFlagMode(flagMode);
+  }
+  flagEl.addEventListener('click', () => {
+    flagMode = !flagMode;
+    savePrefs({ flagMode });
+    applyFlagMode();
+  });
+
+  // ── Clock ────────────────────────────────────────────────────────────────
+  const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  // Elapsed time is always a wall-clock difference from startedAt, never a tick
+  // count: a backgrounded tab throttles intervals, and a counter would silently
+  // drift behind the real time. That also means the ticker can be stopped and
+  // restarted freely without losing a second.
+  function tick() {
+    elapsed = Math.floor((Date.now() - startedAt) / 1000);
+    timerEl.textContent = `⏱ ${fmt(elapsed)}`;
+  }
+  function startTicker() {
+    stopClock();
+    ticker = setInterval(tick, 250);
+  }
+  function startClock() {
+    startedAt = Date.now();
+    startTicker();
+  }
+  function stopClock() {
+    clearInterval(ticker);
+    ticker = null;
+  }
+
+  // ── Rendering ────────────────────────────────────────────────────────────
+  const grid = createGrid($('grid'), {
+    onReveal: (r, c) => applyMove(reveal(game, r, c)),
+    onFlag:   (r, c) => applyMove(toggleFlag(game, r, c)),
+    onChord:  (r, c) => applyMove(chord(game, r, c)),
+  });
+
+  function applyMove(changed) {
+    if (!changed.length) return;
+
+    // The clock starts on the first reveal, not on load — an unstarted board
+    // shouldn't be ticking while you decide where to click.
+    if (game.status === 'playing' && !ticker) {
+      stats.recordStart(levelKey);
+      startClock();
+    }
+
+    grid.update(changed);
+    minesEl.textContent = `🚩 ${minesRemaining(game)}`;
+
+    if (game.status === 'won' || game.status === 'lost') finish();
+  }
+
+  function finish() {
+    stopClock();
+    tick();
+    minesEl.textContent = `🚩 ${minesRemaining(game)}`;
+
+    if (game.status === 'won') {
+      const { isBest } = stats.recordWin(levelKey, elapsed);
+      resetEl.textContent = '😎';
+      bannerEl.className = 'banner won';
+      bannerEl.textContent = isBest
+        ? `Cleared in ${fmt(elapsed)} — new best time!`
+        : `Cleared in ${fmt(elapsed)}.`;
+    } else {
+      resetEl.textContent = '💀';
+      bannerEl.className = 'banner lost';
+      bannerEl.textContent = 'Boom. Tap the face for a new board.';
+    }
+    renderBest();
+  }
+
+  function renderBest() {
+    const { best, won, played } = stats.load();
+    const parts = Object.entries(LEVELS).map(([key, level]) => {
+      const b = best[key];
+      return `${level.label}: ${b == null ? '—' : fmt(b)}`;
+    });
+    const totalWon = Object.values(won).reduce((a, b) => a + b, 0);
+    const totalPlayed = Object.values(played).reduce((a, b) => a + b, 0);
+    bestEl.textContent =
+      `Best times — ${parts.join(' · ')}   (won ${totalWon} of ${totalPlayed})`;
+  }
+
+  function newGame() {
+    stopClock();
+    elapsed = 0;
+    game = createGame(levelKey);
+    grid.mount(game);
+    grid.update();
+    applyFlagMode();
+    minesEl.textContent = `🚩 ${game.mineCount}`;
+    timerEl.textContent = '⏱ 0:00';
+    resetEl.textContent = '🙂';
+    bannerEl.className = 'banner';
+    bannerEl.textContent = '';
+    renderBest();
+  }
+
+  resetEl.addEventListener('click', newGame);
+
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('select')) return;
+    if (e.key === 'n' || e.key === 'N') newGame();
+    if (e.key === 'f' || e.key === 'F') flagEl.click();
+  });
+
+  // Don't burn an interval while the app is backgrounded. Elapsed time comes
+  // from startedAt, so the clock is still correct when we come back.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopClock();
+    else if (game?.status === 'playing') { tick(); startTicker(); }
+  });
+
+  newGame();
+
+  // ── PWA ──────────────────────────────────────────────────────────────────
+  // Registered last so the service worker's precache pass never competes with
+  // the first paint. sw.js is what makes the game playable with no network.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(err =>
+      console.warn('Service worker registration failed:', err));
+  }
+</script>
+
+</body>
+</html>

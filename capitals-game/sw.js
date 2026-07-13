@@ -11,7 +11,14 @@
 // IMPORTANT: bump CACHE_VERSION on every deploy that changes any precached
 // file, otherwise returning players keep the old cached version.
 
-const CACHE_VERSION = 'capitals-v2';
+// CacheStorage is shared across the whole origin, not per service-worker scope —
+// every game on the site sees the same cache list. So the activate handler must
+// only ever delete caches carrying THIS game's prefix; a blanket
+// "delete everything that isn't my current version" would wipe out the other
+// games' offline caches, and whichever game you opened last would be the only
+// one that still worked offline.
+const CACHE_PREFIX = 'capitals-';
+const CACHE_VERSION = `${CACHE_PREFIX}v2`;
 
 const PRECACHE = [
   './',
@@ -47,7 +54,10 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k))))
+      .then(keys => Promise.all(
+        keys.filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE_VERSION)
+            .map(k => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });
