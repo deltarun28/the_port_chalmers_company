@@ -1,0 +1,3 @@
+# Cached source downloads for scripts/ — Natural Earth (13MB), GeoNames,
+# and the Wikidata query result. Regenerated on demand; never committed.
+scripts/.cache/

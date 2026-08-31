@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NZ Towns Game</title>
+
+  <!-- PWA: manifest + icons. theme-color is kept in sync with the active
+       theme by applyTheme() so the installed app's title bar matches. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0a0e1a" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <style>
+    /* ── Theme tokens ─────────────────────────────────────────────────────────
+       All colours in this file use CSS custom properties.
+       :root defines the default dark theme.
+       body.light-theme overrides every token for the outdoor high-contrast mode.
+       Map colours (--map-*, --dot-*) are applied as SVG fill/stroke attributes,
+       so switching theme restyles the map with no redraw.                     */
+
+    :root {
+      --bg-base:        #0a0e1a;   /* body, ocean, deep backgrounds */
+      --bg-card:        #0f1e30;   /* input, cards, tooltips */
+      --bg-hover:       #163d5e;   /* hover / active-button fill */
+      --border:         #2e7ab5;   /* primary borders */
+      --border-subtle:  #163d5e;   /* card dividers, subtle lines */
+      --text-primary:   #e8eaf6;   /* main readable text */
+      --text-secondary: #5c9fd4;   /* labels, slot numbers, round header */
+      --text-muted:     #8ab4cc;   /* region names, placeholder */
+      --text-highlight: #a8d8f0;   /* distances, share text */
+      /* round-end state banners */
+      --bg-won:         #052e16;  --border-won:  #22c55e;  --text-won:  #86efac;
+      --bg-fail:        #1a0f0f;  --border-fail: #7f1d1d;  --text-fail: #fca5a5;
+      /* SVG map */
+      --map-ocean:     #0a0e1a;
+      --map-land:      #16202e;
+      --map-coast:     rgba(255,255,255,0.30);
+      --map-grid:      #1e3a52;
+      --dot-idle:      #2e7ab5;
+      --dot-guessed:   #f97316;
+      --dot-correct:   #22c55e;
+      --dot-label:     #e8eaf6;
+    }
+
+    /* Outdoor / high-contrast light theme
+       Designed for direct sunlight: pure white cards, near-black text,
+       vivid land/ocean contrast.
+       Class is on <html> so map.js can read variables from
+       document.documentElement without any inheritance ambiguity.            */
+    html.light-theme {
+      --bg-base:        #d8e8f5;
+      --bg-card:        #ffffff;
+      --bg-hover:       #b8d4ee;
+      --border:         #2e7ab5;
+      --border-subtle:  #90b8d8;
+      --text-primary:   #06111e;
+      --text-secondary: #1a4d80;
+      --text-muted:     #2d6fa8;
+      --text-highlight: #0a3560;
+      /* round-end state banners */
+      --bg-won:         #dcfce7;  --border-won:  #16a34a;  --text-won:  #14532d;
+      --bg-fail:        #fee2e2;  --border-fail: #dc2626;  --text-fail: #7f1d1d;
+      /* SVG map */
+      --map-ocean:     #1565a8;
+      --map-land:      #4a7c59;
+      --map-coast:     rgba(0,0,0,0.35);
+      --map-grid:      rgba(0,50,120,0.28);
+      --dot-idle:      #f0f5fa;
+      --dot-guessed:   #c2410c;
+      --dot-correct:   #15803d;
+      --dot-label:     #ffffff;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* Compact header — flex row: back-link | center controls | theme btn */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.45rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .header-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .back-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.8rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .back-link:hover { color: var(--text-highlight); }
+
+    #theme-btn {
+      flex-shrink: 0;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text-secondary);
+      padding: 0.3rem 0.7rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #theme-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+
+    .mode-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .mode-btn {
+      padding: 0.35rem 1rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--text-secondary);
+    }
+    .mode-btn:hover:not(.active) { border-color: var(--text-secondary); color: var(--text-primary); }
+
+    .diff-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    .diff-btn {
+      padding: 0.25rem 0.85rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .diff-btn.active {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--text-secondary);
+    }
+    .diff-btn:hover:not(.active) { border-color: var(--text-secondary); color: var(--text-primary); }
+
+    #new-game-btn {
+      padding: 0.35rem 1rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: none;
+    }
+    #new-game-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+
+    main {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      overflow: hidden;
+    }
+
+    .left-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 0;
+    }
+
+    /* Map container fills all remaining height in the left column.
+       container-type: size enables cqw/cqh units on children so the map can
+       inscribe itself in whichever container dimension binds first. */
+    #map-container {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      container-type: size;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Map wrap — New Zealand is markedly portrait (the viewBox is 600x822, so
+       1.37 tall for every 1 wide). Inscribe that rectangle in the container:
+       whichever of width or height binds first decides the other. Keeping the
+       wrap exactly the size of the map, rather than letting the SVG letterbox
+       inside a larger box, is what anchors .map-controls to the map's corner. */
+    #map-container > div {
+      position: relative !important;
+      display: block !important;
+      --map-aspect: 1.37;
+      width:  min(100cqw, calc(100cqh / var(--map-aspect)));
+      height: min(100cqh, calc(100cqw * var(--map-aspect)));
+    }
+
+    .nz-map {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    #right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    /* Round header */
+    .round-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.45rem 0.8rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    .round-header .round-score {
+      font-weight: 700;
+      color: var(--text-highlight);
+    }
+    .round-header .diff-stars {
+      letter-spacing: 0.05em;
+      color: #f59e0b;
+    }
+    .round-header .diff-stars .empty {
+      opacity: 0.25;
+    }
+
+    /* Input */
+    .input-wrap { position: relative; }
+
+    .input-wrap input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-primary);
+      font-size: 1rem;
+      outline: none;
+    }
+    .input-wrap input:focus { border-color: var(--text-secondary); }
+    .input-wrap input:disabled { opacity: 0.4; cursor: not-allowed; }
+    .input-wrap input::placeholder { color: var(--text-muted); }
+
+    #suggestions {
+      position: absolute;
+      z-index: 10;
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      list-style: none;
+      display: none;
+    }
+    #suggestions li {
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+    #suggestions li:hover, #suggestions li.active { background: var(--bg-hover); }
+
+    /* Dots stay clickable even at opacity 0 (hard mode hides them but the map
+       is still the fallback input), so the hover cue has to come from fill. */
+    .town-dot { cursor: pointer; }
+    .town-dot:hover circle { opacity: 1; fill: var(--text-highlight); }
+
+    .map-tooltip {
+      position: absolute;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      color: var(--text-primary);
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 20;
+    }
+
+    .map-controls {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .map-controls button {
+      width: 28px;
+      height: 28px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-highlight);
+      font-size: 1rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .map-controls button:hover { background: var(--bg-hover); }
+
+    /* Results */
+    .guess-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 0.8rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      min-height: 52px;
+    }
+    .guess-card.empty { opacity: 0.4; }
+    .guess-card.correct { border-color: #22c55e; }
+
+    .slot-num {
+      width: 1.4rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+    .flag { font-size: 1.5rem; flex-shrink: 0; }
+
+    .guess-info { flex: 1; display: flex; flex-direction: column; }
+    .guess-info strong { font-size: 0.95rem; color: var(--text-primary); }
+    .region-name { font-size: 0.75rem; color: var(--text-muted); }
+
+    .distance-block { text-align: right; flex-shrink: 0; width: 110px; }
+    .dist-label { font-size: 0.75rem; color: var(--text-highlight); }
+
+    .heat-bar-bg {
+      margin-top: 4px;
+      height: 4px;
+      background: var(--border-subtle);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .heat-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+
+    .game-over-msg {
+      text-align: center;
+      padding: 0.8rem;
+      background: var(--bg-fail);
+      border: 1px solid var(--border-fail);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: var(--text-fail);
+    }
+
+    .won-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0.8rem;
+      background: var(--bg-won);
+      border: 1px solid var(--border-won);
+      border-radius: 8px;
+      color: var(--text-won);
+      font-weight: 600;
+    }
+
+    .next-round-btn {
+      width: 100%;
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .next-round-btn:hover { border-color: var(--text-secondary); }
+
+    .session-total {
+      text-align: center;
+      padding: 0.8rem;
+      background: var(--bg-card);
+      border: 1px solid var(--text-secondary);
+      border-radius: 8px;
+      color: var(--text-highlight);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    /* Share */
+    .share-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    .share-text {
+      font-family: monospace;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: var(--text-highlight);
+      margin-bottom: 0.75rem;
+      white-space: pre;
+    }
+    #copy-btn {
+      width: 100%;
+      padding: 0.5rem;
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    #copy-btn:hover { border-color: var(--text-secondary); }
+
+    #loading {
+      text-align: center;
+      padding: 4rem;
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      grid-column: 1 / -1;
+    }
+
+    @media (max-width: 640px) {
+      /* On mobile: allow page to scroll rather than being locked to viewport height */
+      body { height: auto; min-height: 100dvh; overflow-y: auto; }
+      main { grid-template-columns: 1fr; overflow: visible; height: auto; }
+      #right-col { overflow-y: visible; }
+      /* On mobile the container is unconstrained vertically, so cqh = 0.
+         Fall back to full column width and derive height from the aspect. */
+      #map-container { flex: none; container-type: inline-size; }
+      #map-container > div {
+        width: 100cqw;
+        height: calc(100cqw * var(--map-aspect));
+      }
+      header { flex-wrap: wrap; gap: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="back-link" href="../index.html">← Home</a>
+  <div class="header-center">
+    <div class="mode-bar">
+      <button class="mode-btn active" id="daily-btn">📅 Daily</button>
+      <button class="mode-btn" id="random-btn">🎲 Random</button>
+      <button id="new-game-btn">↺ New game</button>
+    </div>
+    <div class="diff-bar" id="diff-bar"></div>
+  </div>
+  <button id="theme-btn" title="Switch to outdoor mode">☀️ Outdoor</button>
+</header>
+
+<main id="main">
+  <div id="loading">Loading…</div>
+</main>
+
+<script type="module">
+  // ── Wiring layer ─────────────────────────────────────────────────────────────
+  // index.html is the only file that imports from multiple layers.
+  // It owns: session/round lifecycle, mode (daily/random), difficulty selection,
+  // theme toggling, and routing events between the lib/ logic modules and the
+  // ui/ display modules.  No game logic lives here — it delegates entirely.
+  //
+  // Session structure:
+  //   A session = 5 rounds.  Each round has one mystery town.
+  //   Session state: targets[], currentRound (0–4), roundResults[]
+  //   Round state: game object (from game.js), guessedTowns Set
+  //
+  // Data flow per guess:
+  //   input.js or map.js  →  onGuess(town)
+  //   →  game.submitGuess(town)  →  newState
+  //   →  map.update(newState) + renderResults(newState)
+  //   →  if done: endRound() → calcScore() → push to roundResults[]
+  //   →  if last round: endSession() → share()
+
+  import { getDailyTargets } from './lib/daily_target.js';
+  import { createGame } from './lib/game.js';
+  import { createInput } from './ui/input.js';
+  import { createMap } from './ui/map.js';
+  import { renderResults } from './ui/results.js';
+  import { share } from './ui/share.js';
+  import { DIFFICULTIES } from './lib/difficulty.js';
+  import { createDifficultyPicker } from './ui/difficulty_picker.js';
+  import { calcScore } from './lib/scoring.js';
+
+  const ROUNDS = 5; // towns per session
+  const main = document.getElementById('main');
+  const dailyBtn = document.getElementById('daily-btn');
+  const randomBtn = document.getElementById('random-btn');
+  const newGameBtn = document.getElementById('new-game-btn');
+  const themeBtn = document.getElementById('theme-btn');
+
+  // Declared early so applyTheme() (called before await) can reference them safely
+  let inputCtrl, mapCtrl;
+
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  // isDark drives a .light-theme class on <html> (documentElement).
+  // Putting it on <html> means map.js can read CSS variables from
+  // document.documentElement directly — no inheritance ambiguity vs <body>.
+
+  let isDark = localStorage.getItem('theme') !== 'light';
+
+  function applyTheme() {
+    document.documentElement.classList.toggle('light-theme', !isDark);
+    themeBtn.textContent = isDark ? '☀️ Outdoor' : '🌙 Dark';
+    themeBtn.title = isDark ? 'Switch to outdoor mode' : 'Switch to dark mode';
+    // Keep the installed-app title bar colour in sync with the theme
+    document.querySelector('meta[name="theme-color"]')
+      .setAttribute('content', isDark ? '#0a0e1a' : '#d8e8f5');
+    if (mapCtrl) mapCtrl.applyTheme(); // no-op for the SVG map; kept for the interface
+  }
+
+  themeBtn.addEventListener('click', () => {
+    isDark = !isDark;
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    applyTheme();
+  });
+
+  // Apply persisted theme before building UI
+  applyTheme();
+
+  // ── Data loading ──────────────────────────────────────────────────────────
+  // One 25KB file is everything the game needs. The world version also had to
+  // wait on a 1.2MB pre-computed distance table, and carried a whole skeleton
+  // and sequence-guard path to stay responsive while it loaded. Distances are
+  // computed on demand here (lib/distance.js), so that machinery is gone and
+  // the game is playable the moment this resolves. The 80KB coastline loads
+  // separately inside map.js and only affects what the map looks like.
+  const towns = await fetch('./data/towns.json').then(r => r.json());
+
+  let mode = 'daily';
+  let difficultyKey = localStorage.getItem('difficulty') || 'moderate';
+
+  // Session state — reset at the start of every session
+  let targets = [];      // 5 town objects chosen for this session
+  let currentRound = 0;  // index into targets[] (0–4)
+  let roundResults = []; // [{ target, guesses[], score, won }, …] — one per completed round
+
+  // Round state — reset at the start of every round
+  let game;              // current game.js instance
+  let guessedTowns;      // Set of town names already submitted this round (prevents duplicates)
+
+  main.innerHTML = `
+    <div class="left-col">
+      <div id="input-container"></div>
+      <div id="map-container"></div>
+    </div>
+    <div id="right-col">
+      <div id="round-header"></div>
+      <div id="results-container"></div>
+      <div id="share-container"></div>
+    </div>
+  `;
+
+  createDifficultyPicker(
+    document.getElementById('diff-bar'),
+    difficultyKey,
+    key => {
+      difficultyKey = key;
+      localStorage.setItem('difficulty', key);
+      rebuildMap();
+      startSession();
+    }
+  );
+
+  inputCtrl = createInput(document.getElementById('input-container'), towns, handleGuess);
+
+  function rebuildMap() {
+    const mapContainer = document.getElementById('map-container');
+    if (mapCtrl) mapCtrl.destroy(); // remove the old map's window listeners
+    mapContainer.innerHTML = '';
+    mapCtrl = createMap(mapContainer, towns, handleGuess, DIFFICULTIES[difficultyKey]);
+  }
+
+  rebuildMap();
+
+  function getTargets() {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (mode === 'daily') return getDailyTargets(towns, today);
+    return [1, 2, 3, 4, 5].map(tier => {
+      const pool = towns.filter(t => t.difficulty === tier);
+      return pool[Math.floor(Math.random() * pool.length)];
+    });
+  }
+
+  function renderRoundHeader() {
+    const score = roundResults.reduce((s, r) => s + r.score, 0);
+    const diff = targets[currentRound]?.difficulty ?? 0;
+    const stars = '★'.repeat(diff) + `<span class="empty">${'★'.repeat(5 - diff)}</span>`;
+    document.getElementById('round-header').innerHTML = `
+      <div class="round-header">
+        <span>Town ${currentRound + 1} of ${ROUNDS}</span>
+        <span class="diff-stars">${stars}</span>
+        <span class="round-score">${score} pts</span>
+      </div>
+    `;
+  }
+
+  function startSession() {
+    targets = getTargets();
+    currentRound = 0;
+    roundResults = [];
+    document.getElementById('share-container').innerHTML = '';
+    startRound();
+  }
+
+  function startRound() {
+    game = createGame(targets[currentRound], difficultyKey);
+    guessedTowns = new Set();
+    mapCtrl.reset();
+    inputCtrl.enable();
+    inputCtrl.clear();
+    inputCtrl.focus();
+    renderRoundHeader();
+    renderResults(
+      document.getElementById('results-container'),
+      [], 'playing', targets[currentRound],
+      DIFFICULTIES[difficultyKey].maxGuesses
+    );
+  }
+
+  function handleGuess(town) {
+    if (!game) return;
+    const state = game.getState();
+    if (state.status !== 'playing') return;
+    if (guessedTowns.has(town.name)) return;
+    guessedTowns.add(town.name);
+
+    const newState = game.submitGuess(town);
+    mapCtrl.update(newState.guesses, newState.status, newState.target);
+    renderResults(
+      document.getElementById('results-container'),
+      newState.guesses, newState.status, newState.target,
+      DIFFICULTIES[difficultyKey].maxGuesses
+    );
+
+    if (newState.status === 'won' || newState.status === 'lost') {
+      endRound(newState);
+    }
+  }
+
+  function endRound(state) {
+    inputCtrl.disable();
+    const won = state.status === 'won';
+    const score = calcScore(state.guesses.length, won);
+    roundResults.push({ target: state.target, guesses: state.guesses, score, won });
+    renderRoundHeader();
+
+    const isLast = currentRound === ROUNDS - 1;
+    const resultsEl = document.getElementById('results-container');
+
+    if (won) {
+      const label = state.guesses.length === 1 ? 'First guess!' : `Got it in ${state.guesses.length}!`;
+      resultsEl.insertAdjacentHTML('beforeend', `
+        <div class="won-banner">
+          <span>🎉 ${label}</span>
+          <strong>+${score} pts</strong>
+        </div>
+      `);
+    }
+
+    if (!isLast) {
+      resultsEl.insertAdjacentHTML('beforeend', `
+        <button class="next-round-btn" id="next-round-btn">Next Town →</button>
+      `);
+      document.getElementById('next-round-btn').addEventListener('click', () => {
+        currentRound++;
+        startRound();
+      });
+    } else {
+      endSession();
+    }
+  }
+
+  function endSession() {
+    const total = roundResults.reduce((s, r) => s + r.score, 0);
+    document.getElementById('results-container').insertAdjacentHTML('beforeend', `
+      <div class="session-total">Final score: ${total} / ${ROUNDS * 200}</div>
+    `);
+    share(document.getElementById('share-container'), roundResults, difficultyKey);
+  }
+
+  dailyBtn.addEventListener('click', () => {
+    if (mode === 'daily') return;
+    mode = 'daily';
+    dailyBtn.classList.add('active');
+    randomBtn.classList.remove('active');
+    newGameBtn.style.display = 'none';
+    startSession();
+  });
+
+  randomBtn.addEventListener('click', () => {
+    mode = 'random';
+    randomBtn.classList.add('active');
+    dailyBtn.classList.remove('active');
+    newGameBtn.style.display = 'inline-block';
+    startSession();
+  });
+
+  newGameBtn.addEventListener('click', startSession);
+
+  startSession();
+
+  // ── PWA ───────────────────────────────────────────────────────────────────
+  // Registered after startSession so the service worker's precache pass never
+  // competes with the game's own startup fetches. sw.js handles offline play;
+  // manifest.webmanifest makes the game installable.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(err =>
+      console.warn('Service worker registration failed:', err));
+  }
+</script>
+
+</body>
+</html>
