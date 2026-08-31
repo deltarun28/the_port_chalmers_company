@@ -1,0 +1,2077 @@
+[
+ {
+  "name": "Akaroa",
+  "region": "Canterbury",
+  "lat": -43.804141666,
+  "lng": 172.968188888,
+  "population": 756,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Alexandra",
+  "region": "Otago",
+  "lat": -45.24837,
+  "lng": 169.37008,
+  "population": 5830,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Amberley",
+  "region": "Canterbury",
+  "lat": -43.15589,
+  "lng": 172.72975,
+  "population": null,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Arrowtown",
+  "region": "Otago",
+  "lat": -44.93837,
+  "lng": 168.81007,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Ashburton",
+  "region": "Canterbury",
+  "lat": -43.905555555,
+  "lng": 171.745555555,
+  "population": 20200,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Ashhurst",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.3,
+  "lng": 175.75,
+  "population": 3160,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Atiamuri",
+  "region": "Waikato",
+  "lat": -38.38333,
+  "lng": 176.01667,
+  "population": null,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Auckland",
+  "region": "Auckland",
+  "lat": -36.849166666,
+  "lng": 174.765277777,
+  "population": 1470100,
+  "aliases": [
+   "Auckland"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Awakino",
+  "region": "Waikato",
+  "lat": -38.65,
+  "lng": 174.63333,
+  "population": null,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Balclutha",
+  "region": "Otago",
+  "lat": -46.241666666,
+  "lng": 169.733333333,
+  "population": 4230,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Benneydale",
+  "region": "Waikato",
+  "lat": -38.5206,
+  "lng": 175.36158,
+  "population": null,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Blenheim",
+  "region": "Marlborough",
+  "lat": -41.516666666,
+  "lng": 173.95,
+  "population": 28200,
+  "aliases": [
+   "Marlborough"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Bluff",
+  "region": "Southland",
+  "lat": -46.6,
+  "lng": 168.333333333,
+  "population": 1880,
+  "aliases": [
+   "Southland"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Bulls",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.17487,
+  "lng": 175.38463,
+  "population": null,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Cambridge",
+  "region": "Waikato",
+  "lat": -37.883333333,
+  "lng": 175.466666666,
+  "population": 20500,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Cardrona",
+  "region": "Otago",
+  "lat": -44.88333,
+  "lng": 169.0,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Carterton",
+  "region": "Wellington",
+  "lat": -41.025,
+  "lng": 175.5275,
+  "population": 5800,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Cheviot",
+  "region": "Canterbury",
+  "lat": -42.81667,
+  "lng": 173.26667,
+  "population": null,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Christchurch",
+  "region": "Canterbury",
+  "lat": -43.531111111,
+  "lng": 172.636111111,
+  "population": 383200,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Clyde",
+  "region": "Otago",
+  "lat": -45.18651,
+  "lng": 169.31545,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Collingwood",
+  "region": "Tasman",
+  "lat": -40.67716,
+  "lng": 172.6807,
+  "population": null,
+  "aliases": [
+   "Tasman"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Coromandel",
+  "region": "Waikato",
+  "lat": -36.754,
+  "lng": 175.504,
+  "population": 1860,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Cromwell",
+  "region": "Otago",
+  "lat": -45.03837,
+  "lng": 169.20008,
+  "population": 5160,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Culverden",
+  "region": "Canterbury",
+  "lat": -42.76667,
+  "lng": 172.85,
+  "population": null,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Dannevirke",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.206111111,
+  "lng": 176.099444444,
+  "population": 5750,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Darfield",
+  "region": "Canterbury",
+  "lat": -43.48333,
+  "lng": 172.11667,
+  "population": null,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Dargaville",
+  "region": "Northland",
+  "lat": -35.933333333,
+  "lng": 173.883333333,
+  "population": 5170,
+  "aliases": [
+   "Northland"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Dunedin",
+  "region": "Otago",
+  "lat": -45.874166666,
+  "lng": 170.503611111,
+  "population": 106200,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Edgecumbe",
+  "region": "Bay of Plenty",
+  "lat": -37.98333,
+  "lng": 176.83333,
+  "population": null,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Eketahuna",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.64623,
+  "lng": 175.70366,
+  "population": null,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Fairlie",
+  "region": "Canterbury",
+  "lat": -44.1,
+  "lng": 170.83333,
+  "population": null,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Featherston",
+  "region": "Wellington",
+  "lat": -41.116666666,
+  "lng": 175.316666666,
+  "population": 2680,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Feilding",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.225,
+  "lng": 175.565,
+  "population": 17800,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Fox Glacier",
+  "region": "West Coast",
+  "lat": -43.46485,
+  "lng": 170.01678,
+  "population": null,
+  "aliases": [
+   "West Coast"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Foxton",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.47277,
+  "lng": 175.28601,
+  "population": 4780,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Franz Josef",
+  "region": "West Coast",
+  "lat": -43.38905,
+  "lng": 170.18189,
+  "population": null,
+  "aliases": [
+   "West Coast"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Geraldine",
+  "region": "Canterbury",
+  "lat": -44.090277777,
+  "lng": 171.243333333,
+  "population": 2800,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Gisborne",
+  "region": "Gisborne",
+  "lat": -38.6625,
+  "lng": 178.017777777,
+  "population": 37000,
+  "aliases": [
+   "Gisborne"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Glenorchy",
+  "region": "Otago",
+  "lat": -44.85036,
+  "lng": 168.38664,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Gore",
+  "region": "Southland",
+  "lat": -46.099166666,
+  "lng": 168.946388888,
+  "population": 8230,
+  "aliases": [
+   "Southland"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Greymouth",
+  "region": "West Coast",
+  "lat": -42.45,
+  "lng": 171.2075,
+  "population": 8170,
+  "aliases": [
+   "West Coast"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Greytown",
+  "region": "Wellington",
+  "lat": -41.083333333,
+  "lng": 175.45,
+  "population": 2690,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Haast",
+  "region": "West Coast",
+  "lat": -43.880277777,
+  "lng": 169.04,
+  "population": 84,
+  "aliases": [
+   "West Coast"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Hamilton",
+  "region": "Waikato",
+  "lat": -37.783333333,
+  "lng": 175.283333333,
+  "population": 176500,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Hanmer Springs",
+  "region": "Canterbury",
+  "lat": -42.522222222,
+  "lng": 172.829722222,
+  "population": 1100,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Hastings",
+  "region": "Hawke's Bay",
+  "lat": -39.65,
+  "lng": 176.833333333,
+  "population": 49000,
+  "aliases": [
+   "Hawke's Bay"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Havelock",
+  "region": "Marlborough",
+  "lat": -41.28333,
+  "lng": 173.76667,
+  "population": null,
+  "aliases": [
+   "Marlborough"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Hāwera",
+  "region": "Taranaki",
+  "lat": -39.589,
+  "lng": 174.282,
+  "population": 10300,
+  "aliases": [
+   "Taranaki",
+   "Hawera"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Helensville",
+  "region": "Auckland",
+  "lat": -36.679722222,
+  "lng": 174.449444444,
+  "population": 3150,
+  "aliases": [
+   "Auckland"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Himatangi",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.39146,
+  "lng": 175.3153,
+  "population": null,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Hokitika",
+  "region": "West Coast",
+  "lat": -42.716666666,
+  "lng": 170.966666666,
+  "population": 2920,
+  "aliases": [
+   "West Coast"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Huntly",
+  "region": "Waikato",
+  "lat": -37.558333333,
+  "lng": 175.158333333,
+  "population": 8730,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Inglewood",
+  "region": "Taranaki",
+  "lat": -39.15,
+  "lng": 174.2,
+  "population": 3750,
+  "aliases": [
+   "Taranaki"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Invercargill",
+  "region": "Southland",
+  "lat": -46.429,
+  "lng": 168.362,
+  "population": 50200,
+  "aliases": [
+   "Southland"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Kaeo",
+  "region": "Northland",
+  "lat": -35.1,
+  "lng": 173.78333,
+  "population": null,
+  "aliases": [
+   "Northland"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Kaiapoi",
+  "region": "Canterbury",
+  "lat": -43.381666666,
+  "lng": 172.657222222,
+  "population": 12850,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Kaikohe",
+  "region": "Northland",
+  "lat": -35.4075,
+  "lng": 173.799722222,
+  "population": 4820,
+  "aliases": [
+   "Northland"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Kaikōura",
+  "region": "Canterbury",
+  "lat": -42.400011111,
+  "lng": 173.681358333,
+  "population": 2210,
+  "aliases": [
+   "Canterbury",
+   "Kaikoura"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Kaitaia",
+  "region": "Northland",
+  "lat": -35.1125,
+  "lng": 173.262777777,
+  "population": 6300,
+  "aliases": [
+   "Northland"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Kaponga",
+  "region": "Taranaki",
+  "lat": -39.43333,
+  "lng": 174.15,
+  "population": null,
+  "aliases": [
+   "Taranaki"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Karamea",
+  "region": "West Coast",
+  "lat": -41.25,
+  "lng": 172.11667,
+  "population": null,
+  "aliases": [
+   "West Coast"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Katikati",
+  "region": "Bay of Plenty",
+  "lat": -37.55,
+  "lng": 175.916666666,
+  "population": 5420,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Kawakawa",
+  "region": "Northland",
+  "lat": -35.383055555,
+  "lng": 174.066666666,
+  "population": 1610,
+  "aliases": [
+   "Northland"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Kawerau",
+  "region": "Bay of Plenty",
+  "lat": -38.084683,
+  "lng": 176.699638,
+  "population": 7750,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Kerikeri",
+  "region": "Northland",
+  "lat": -35.224444444,
+  "lng": 173.951388888,
+  "population": 7850,
+  "aliases": [
+   "Northland"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Kingston",
+  "region": "Otago",
+  "lat": -45.33288,
+  "lng": 168.71476,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Kumeū",
+  "region": "Auckland",
+  "lat": -36.775833333,
+  "lng": 174.555277777,
+  "population": 8510,
+  "aliases": [
+   "Auckland",
+   "Kumeu"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Kurow",
+  "region": "Canterbury",
+  "lat": -44.73341,
+  "lng": 170.46962,
+  "population": null,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Lawrence",
+  "region": "Otago",
+  "lat": -45.90839,
+  "lng": 169.6901,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Leeston",
+  "region": "Canterbury",
+  "lat": -43.76667,
+  "lng": 172.3,
+  "population": null,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Levin",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.63333,
+  "lng": 175.275,
+  "population": 18800,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Lincoln",
+  "region": "Canterbury",
+  "lat": -43.64,
+  "lng": 172.486,
+  "population": 8130,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Lower Hutt",
+  "region": "Wellington",
+  "lat": -41.216666666,
+  "lng": 174.916666666,
+  "population": 103400,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Lumsden",
+  "region": "Southland",
+  "lat": -45.73333,
+  "lng": 168.45,
+  "population": null,
+  "aliases": [
+   "Southland"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Maketu",
+  "region": "Bay of Plenty",
+  "lat": -37.76667,
+  "lng": 176.45,
+  "population": null,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Manaia",
+  "region": "Taranaki",
+  "lat": -39.55,
+  "lng": 174.13333,
+  "population": null,
+  "aliases": [
+   "Taranaki"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Mangakino",
+  "region": "Waikato",
+  "lat": -38.369,
+  "lng": 175.775,
+  "population": 880,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Mangawhai",
+  "region": "Northland",
+  "lat": -36.126388888,
+  "lng": 174.574722222,
+  "population": 1800,
+  "aliases": [
+   "Northland"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Martinborough",
+  "region": "Wellington",
+  "lat": -41.218838888,
+  "lng": 175.459069444,
+  "population": 1930,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Marton",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.0692,
+  "lng": 175.37823,
+  "population": 5740,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Masterton",
+  "region": "Wellington",
+  "lat": -40.966666666,
+  "lng": 175.65,
+  "population": 21400,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Matamata",
+  "region": "Waikato",
+  "lat": -37.809722222,
+  "lng": 175.773333333,
+  "population": 8460,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Methven",
+  "region": "Canterbury",
+  "lat": -43.633333333,
+  "lng": 171.65,
+  "population": 1900,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Milton",
+  "region": "Otago",
+  "lat": -46.1167,
+  "lng": 169.967,
+  "population": 2210,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Minginui",
+  "region": "Bay of Plenty",
+  "lat": -38.6419,
+  "lng": 176.733,
+  "population": 0,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Mokau",
+  "region": "Waikato",
+  "lat": -38.69743,
+  "lng": 174.61923,
+  "population": null,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Morrinsville",
+  "region": "Waikato",
+  "lat": -37.65,
+  "lng": 175.516666666,
+  "population": 8320,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Motueka",
+  "region": "Tasman",
+  "lat": -41.123333333,
+  "lng": 173.014722222,
+  "population": 8420,
+  "aliases": [
+   "Tasman"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Murchison",
+  "region": "Tasman",
+  "lat": -41.8,
+  "lng": 172.333333333,
+  "population": 500,
+  "aliases": [
+   "Tasman"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Murupara",
+  "region": "Bay of Plenty",
+  "lat": -38.456,
+  "lng": 176.705,
+  "population": 1970,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Napier",
+  "region": "Hawke's Bay",
+  "lat": -39.490277777,
+  "lng": 176.917777777,
+  "population": 66300,
+  "aliases": [
+   "Hawke's Bay"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Naseby",
+  "region": "Otago",
+  "lat": -45.01836,
+  "lng": 170.13009,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "National Park",
+  "region": "Manawatu-Whanganui",
+  "lat": -39.18333,
+  "lng": 175.4,
+  "population": null,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Nelson",
+  "region": "Nelson",
+  "lat": -41.293056,
+  "lng": 173.238056,
+  "population": 51100,
+  "aliases": [
+   "Nelson"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "New Plymouth",
+  "region": "Taranaki",
+  "lat": -39.057777777,
+  "lng": 174.074166666,
+  "population": 57600,
+  "aliases": [
+   "Taranaki"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Ngāruawāhia",
+  "region": "Waikato",
+  "lat": -37.668,
+  "lng": 175.147,
+  "population": 7740,
+  "aliases": [
+   "Waikato",
+   "Ngaruawahia"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Ngatea",
+  "region": "Waikato",
+  "lat": -37.28333,
+  "lng": 175.5,
+  "population": null,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Norsewood",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.07049,
+  "lng": 176.21826,
+  "population": null,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Oamaru",
+  "region": "Otago",
+  "lat": -45.089444444,
+  "lng": 170.966111111,
+  "population": 13700,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Ohakune",
+  "region": "Manawatu-Whanganui",
+  "lat": -39.418611111,
+  "lng": 175.399444444,
+  "population": 1420,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Ohope Beach",
+  "region": "Bay of Plenty",
+  "lat": -37.97519,
+  "lng": 177.07588,
+  "population": 3250,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Omarama",
+  "region": "Canterbury",
+  "lat": -44.48848,
+  "lng": 169.96626,
+  "population": null,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Ōpōtiki",
+  "region": "Bay of Plenty",
+  "lat": -38.007,
+  "lng": 177.287,
+  "population": 5210,
+  "aliases": [
+   "Bay of Plenty",
+   "Opotiki"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Ōpunake",
+  "region": "Taranaki",
+  "lat": -39.4525,
+  "lng": 173.854722222,
+  "population": 1440,
+  "aliases": [
+   "Taranaki",
+   "Opunake"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Orewa",
+  "region": "Auckland",
+  "lat": -36.581,
+  "lng": 174.679,
+  "population": 12630,
+  "aliases": [
+   "Auckland"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Ōtaki",
+  "region": "Wellington",
+  "lat": -40.75833,
+  "lng": 175.15,
+  "population": 4980,
+  "aliases": [
+   "Wellington",
+   "Otaki"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Otautau",
+  "region": "Southland",
+  "lat": -46.15,
+  "lng": 168.0,
+  "population": null,
+  "aliases": [
+   "Southland"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Ōtorohanga",
+  "region": "Waikato",
+  "lat": -38.1875,
+  "lng": 175.211111111,
+  "population": 3240,
+  "aliases": [
+   "Waikato",
+   "Otorohanga"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Owaka",
+  "region": "Otago",
+  "lat": -46.45,
+  "lng": 169.66667,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Paeroa",
+  "region": "Waikato",
+  "lat": -37.383,
+  "lng": 175.674,
+  "population": 4510,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Pahiatua",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.45345,
+  "lng": 175.8406,
+  "population": null,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Paihia",
+  "region": "Northland",
+  "lat": -35.282222222,
+  "lng": 174.091111111,
+  "population": 1660,
+  "aliases": [
+   "Northland"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Palmerston North",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.354911,
+  "lng": 175.609511,
+  "population": 81500,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Paraparaumu",
+  "region": "Wellington",
+  "lat": -40.914444444,
+  "lng": 175.005555555,
+  "population": 30100,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Patea",
+  "region": "Taranaki",
+  "lat": -39.75833,
+  "lng": 174.48333,
+  "population": null,
+  "aliases": [
+   "Taranaki"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Pegasus",
+  "region": "Canterbury",
+  "lat": -43.314388888,
+  "lng": 172.697522222,
+  "population": 3360,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Picton",
+  "region": "Marlborough",
+  "lat": -41.291666666,
+  "lng": 174.005555555,
+  "population": 4730,
+  "aliases": [
+   "Marlborough"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Piopio",
+  "region": "Waikato",
+  "lat": -38.46667,
+  "lng": 175.01667,
+  "population": null,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Porirua",
+  "region": "Wellington",
+  "lat": -41.133333333,
+  "lng": 174.85,
+  "population": 59600,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Pukekohe",
+  "region": "Auckland",
+  "lat": -37.203,
+  "lng": 174.904,
+  "population": 26500,
+  "aliases": [
+   "Auckland"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Putāruru",
+  "region": "Waikato",
+  "lat": -38.053,
+  "lng": 175.78,
+  "population": 4530,
+  "aliases": [
+   "Waikato",
+   "Putaruru"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Queenstown",
+  "region": "Otago",
+  "lat": -45.031111111,
+  "lng": 168.6625,
+  "population": 29000,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Raetihi",
+  "region": "Manawatu-Whanganui",
+  "lat": -39.4274,
+  "lng": 175.282,
+  "population": 1140,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Raglan",
+  "region": "Waikato",
+  "lat": -37.8,
+  "lng": 174.88333,
+  "population": 3840,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Ranfurly",
+  "region": "Otago",
+  "lat": -45.13333,
+  "lng": 170.1,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Rangiora",
+  "region": "Canterbury",
+  "lat": -43.304722222,
+  "lng": 172.589166666,
+  "population": 19250,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Raurimu",
+  "region": "Manawatu-Whanganui",
+  "lat": -39.11667,
+  "lng": 175.4,
+  "population": null,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Reefton",
+  "region": "West Coast",
+  "lat": -42.1167,
+  "lng": 171.867,
+  "population": 1010,
+  "aliases": [
+   "West Coast"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Reporoa",
+  "region": "Bay of Plenty",
+  "lat": -38.43594,
+  "lng": 176.34117,
+  "population": null,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Richmond",
+  "region": "Tasman",
+  "lat": -41.333333333,
+  "lng": 173.183333333,
+  "population": 17250,
+  "aliases": [
+   "Tasman"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Riverton",
+  "region": "Southland",
+  "lat": -46.35,
+  "lng": 168.01667,
+  "population": null,
+  "aliases": [
+   "Southland"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Rolleston",
+  "region": "Canterbury",
+  "lat": -43.596,
+  "lng": 172.383,
+  "population": 21900,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Ross",
+  "region": "West Coast",
+  "lat": -42.88829,
+  "lng": 170.81012,
+  "population": null,
+  "aliases": [
+   "West Coast"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Rotorua",
+  "region": "Bay of Plenty",
+  "lat": -38.137777777,
+  "lng": 176.251388888,
+  "population": 58500,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Roxburgh",
+  "region": "Otago",
+  "lat": -45.54056,
+  "lng": 169.31466,
+  "population": null,
+  "aliases": [
+   "Otago"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Ruatoria",
+  "region": "Gisborne",
+  "lat": -37.892,
+  "lng": 178.317,
+  "population": 830,
+  "aliases": [
+   "Gisborne"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Seddon",
+  "region": "Marlborough",
+  "lat": -41.66667,
+  "lng": 174.08333,
+  "population": null,
+  "aliases": [
+   "Marlborough"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Shannon",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.54826,
+  "lng": 175.42021,
+  "population": null,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Stratford",
+  "region": "Taranaki",
+  "lat": -39.341,
+  "lng": 174.284,
+  "population": 6030,
+  "aliases": [
+   "Taranaki"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Taihape",
+  "region": "Manawatu-Whanganui",
+  "lat": -39.676666666,
+  "lng": 175.796666666,
+  "population": 1790,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Tairua",
+  "region": "Waikato",
+  "lat": -37.01667,
+  "lng": 175.85,
+  "population": null,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Takaka",
+  "region": "Tasman",
+  "lat": -40.85,
+  "lng": 172.8,
+  "population": null,
+  "aliases": [
+   "Tasman"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Taumarunui",
+  "region": "Manawatu-Whanganui",
+  "lat": -38.883333333,
+  "lng": 175.261666666,
+  "population": 4860,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Taupō",
+  "region": "Waikato",
+  "lat": -38.69,
+  "lng": 176.08,
+  "population": 25400,
+  "aliases": [
+   "Waikato",
+   "Taupo"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Tauranga",
+  "region": "Bay of Plenty",
+  "lat": -37.685833333,
+  "lng": 176.166666666,
+  "population": 151300,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Te Anau",
+  "region": "Southland",
+  "lat": -45.415,
+  "lng": 167.716,
+  "population": 2940,
+  "aliases": [
+   "Southland"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Te Aroha",
+  "region": "Waikato",
+  "lat": -37.538796,
+  "lng": 175.709143,
+  "population": 4670,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Te Awamutu",
+  "region": "Waikato",
+  "lat": -38.008333333,
+  "lng": 175.325,
+  "population": 13100,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Te Kaha",
+  "region": "Bay of Plenty",
+  "lat": -37.73987,
+  "lng": 177.67656,
+  "population": null,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Te Kauwhata",
+  "region": "Waikato",
+  "lat": -37.4,
+  "lng": 175.15,
+  "population": 3740,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Te Kūiti",
+  "region": "Waikato",
+  "lat": -38.335,
+  "lng": 175.165,
+  "population": 4770,
+  "aliases": [
+   "Waikato",
+   "Te Kuiti"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Te Puke",
+  "region": "Bay of Plenty",
+  "lat": -37.783333333,
+  "lng": 176.316666666,
+  "population": 9560,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Temuka",
+  "region": "Canterbury",
+  "lat": -44.22834,
+  "lng": 171.2801,
+  "population": 4840,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Thames",
+  "region": "Waikato",
+  "lat": -37.1384,
+  "lng": 175.5405,
+  "population": 7680,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Timaru",
+  "region": "Canterbury",
+  "lat": -44.393055555,
+  "lng": 171.250833333,
+  "population": 28700,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Tokoroa",
+  "region": "Waikato",
+  "lat": -38.22,
+  "lng": 175.872,
+  "population": 14300,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Tolaga Bay",
+  "region": "Gisborne",
+  "lat": -38.36667,
+  "lng": 178.3,
+  "population": null,
+  "aliases": [
+   "Gisborne"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Tuatapere",
+  "region": "Southland",
+  "lat": -46.13333,
+  "lng": 167.68333,
+  "population": null,
+  "aliases": [
+   "Southland"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Tūrangi",
+  "region": "Waikato",
+  "lat": -38.989,
+  "lng": 175.81,
+  "population": 3650,
+  "aliases": [
+   "Waikato",
+   "Turangi"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Twizel",
+  "region": "Canterbury",
+  "lat": -44.258333333,
+  "lng": 170.1,
+  "population": 1650,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Upper Hutt",
+  "region": "Wellington",
+  "lat": -41.133333333,
+  "lng": 175.05,
+  "population": 44300,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Waihi",
+  "region": "Waikato",
+  "lat": -37.38333,
+  "lng": 175.83333,
+  "population": 4619,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Waihi Beach",
+  "region": "Bay of Plenty",
+  "lat": -37.4,
+  "lng": 175.93333,
+  "population": null,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Waikanae",
+  "region": "Wellington",
+  "lat": -40.876,
+  "lng": 175.064,
+  "population": 13650,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Waimate",
+  "region": "Canterbury",
+  "lat": -44.732661,
+  "lng": 171.048106,
+  "population": 3570,
+  "aliases": [
+   "Canterbury"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Waiotapu",
+  "region": "Bay of Plenty",
+  "lat": -38.35,
+  "lng": 176.36667,
+  "population": null,
+  "aliases": [
+   "Bay of Plenty"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Waiouru",
+  "region": "Manawatu-Whanganui",
+  "lat": -39.469,
+  "lng": 175.676,
+  "population": 790,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Waipawa",
+  "region": "Hawke's Bay",
+  "lat": -39.941666666,
+  "lng": 176.5875,
+  "population": 2250,
+  "aliases": [
+   "Hawke's Bay"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Waipū",
+  "region": "Northland",
+  "lat": -35.9833,
+  "lng": 174.45,
+  "population": 1160,
+  "aliases": [
+   "Northland",
+   "Waipu"
+  ],
+  "difficulty": 5
+ },
+ {
+  "name": "Waipukurau",
+  "region": "Hawke's Bay",
+  "lat": -39.995,
+  "lng": 176.557,
+  "population": 4610,
+  "aliases": [
+   "Hawke's Bay"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Wairoa",
+  "region": "Hawke's Bay",
+  "lat": -39.042,
+  "lng": 177.423,
+  "population": 4870,
+  "aliases": [
+   "Hawke's Bay"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Waitara",
+  "region": "Taranaki",
+  "lat": -38.995833333,
+  "lng": 174.233055555,
+  "population": 7270,
+  "aliases": [
+   "Taranaki"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Waiuku",
+  "region": "Auckland",
+  "lat": -37.24806,
+  "lng": 174.73489,
+  "population": 9860,
+  "aliases": [
+   "Auckland"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Wānaka",
+  "region": "Otago",
+  "lat": -44.708056,
+  "lng": 169.123889,
+  "population": 8900,
+  "aliases": [
+   "Otago",
+   "Wanaka"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Ward",
+  "region": "Marlborough",
+  "lat": -41.83333,
+  "lng": 174.13333,
+  "population": null,
+  "aliases": [
+   "Marlborough"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Warkworth",
+  "region": "Auckland",
+  "lat": -36.4,
+  "lng": 174.666666666,
+  "population": 6220,
+  "aliases": [
+   "Auckland"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Wellington",
+  "region": "Wellington",
+  "lat": -41.288888888,
+  "lng": 174.777222222,
+  "population": 216200,
+  "aliases": [
+   "Wellington"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Wellsford",
+  "region": "Auckland",
+  "lat": -36.295833333,
+  "lng": 174.523333333,
+  "population": 2140,
+  "aliases": [
+   "Auckland"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Westport",
+  "region": "West Coast",
+  "lat": -41.755,
+  "lng": 171.599,
+  "population": 4660,
+  "aliases": [
+   "West Coast"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Whakatāne",
+  "region": "Bay of Plenty",
+  "lat": -37.964,
+  "lng": 176.984,
+  "population": 16850,
+  "aliases": [
+   "Bay of Plenty",
+   "Whakatane"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Whangamatā",
+  "region": "Waikato",
+  "lat": -37.21,
+  "lng": 175.874,
+  "population": 4420,
+  "aliases": [
+   "Waikato",
+   "Whangamata"
+  ],
+  "difficulty": 4
+ },
+ {
+  "name": "Whanganui",
+  "region": "Manawatu-Whanganui",
+  "lat": -39.9325,
+  "lng": 175.051944444,
+  "population": 42200,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Whangaparāoa",
+  "region": "Auckland",
+  "lat": -36.635,
+  "lng": 174.748,
+  "population": 3786,
+  "aliases": [
+   "Auckland",
+   "Whangaparaoa"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Whangārei",
+  "region": "Northland",
+  "lat": -35.725,
+  "lng": 174.323611111,
+  "population": 54400,
+  "aliases": [
+   "Northland",
+   "Whangarei"
+  ],
+  "difficulty": 1
+ },
+ {
+  "name": "Whitianga",
+  "region": "Waikato",
+  "lat": -36.833055555,
+  "lng": 175.699722222,
+  "population": 6160,
+  "aliases": [
+   "Waikato"
+  ],
+  "difficulty": 2
+ },
+ {
+  "name": "Winton",
+  "region": "Southland",
+  "lat": -46.143,
+  "lng": 168.324,
+  "population": 2470,
+  "aliases": [
+   "Southland"
+  ],
+  "difficulty": 3
+ },
+ {
+  "name": "Woodville",
+  "region": "Manawatu-Whanganui",
+  "lat": -40.33719,
+  "lng": 175.86678,
+  "population": null,
+  "aliases": [
+   "Manawatu-Whanganui"
+  ],
+  "difficulty": 5
+ }
+]
