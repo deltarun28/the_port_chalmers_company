@@ -40,6 +40,9 @@
       --map-ocean:     #0a0e1a;
       --map-land:      #16202e;
       --map-coast:     rgba(255,255,255,0.30);
+      --map-border:    rgba(130,180,220,0.38);
+      --map-lake:      rgba(130,180,220,0.55);
+      --map-lake-fill: #1e4a70;
       --map-grid:      #1e3a52;
       --dot-idle:      #2e7ab5;
       --dot-guessed:   #f97316;
@@ -69,6 +72,9 @@
       --map-ocean:     #1565a8;
       --map-land:      #4a7c59;
       --map-coast:     rgba(0,0,0,0.35);
+      --map-border:    rgba(255,255,255,0.5);
+      --map-lake:      rgba(255,255,255,0.6);
+      --map-lake-fill: #1565a8;
       --map-grid:      rgba(0,50,120,0.28);
       --dot-idle:      #f0f5fa;
       --dot-guessed:   #c2410c;
@@ -578,12 +584,13 @@
   applyTheme();
 
   // ── Data loading ──────────────────────────────────────────────────────────
-  // One 25KB file is everything the game needs. The world version also had to
+  // One 32KB file is everything the game needs. The world version also had to
   // wait on a 1.2MB pre-computed distance table, and carried a whole skeleton
   // and sequence-guard path to stay responsive while it loaded. Distances are
   // computed on demand here (lib/distance.js), so that machinery is gone and
-  // the game is playable the moment this resolves. The 80KB coastline loads
-  // separately inside map.js and only affects what the map looks like.
+  // the game is playable the moment this resolves. The geography layers (coast,
+  // borders, lakes) load separately inside map.js and only affect how the map
+  // looks, never whether it can be played.
   const towns = await fetch('./data/towns.json').then(r => r.json());
 
   let mode = 'daily';
