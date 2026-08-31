@@ -52,7 +52,7 @@ cache their downloads in `scripts/.cache/` (gitignored).
 ```bash
 python3 scripts/generate_towns.py             # → data/towns.json
 python3 scripts/generate_difficulty_scores.py # → adds difficulty tiers, in place
-python3 scripts/generate_coastline.py         # → data/coastline.json
+python3 scripts/generate_geography.py          # → data/geography.json
 ```
 
 Run the difficulty script after the towns script — it edits `towns.json` in

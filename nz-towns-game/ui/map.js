@@ -19,8 +19,16 @@
 //   over that span is close enough to true scale that the player can eyeball
 //   distances, and SVG gives crisp text, real hit targets and free zooming.
 //
+// Map layers, in paint order (data/geography.json):
+//   ocean → grid → land fill → region borders → lakes → coast stroke → rings → dots
+//   The coast stroke is drawn as its own layer ON TOP of the region borders
+//   rather than as a stroke on the land fill. Region polygons and the country
+//   outline come from two different Natural Earth files whose coastal edges do
+//   not align to the pixel, so stroking both would show a doubled, slightly
+//   offset shoreline. Drawing the coast last covers the seam.
+//
 // Coordinate systems:
-//   [lat, lng]  — geographic degrees (source: towns.json, coastline.json)
+//   [lat, lng]  — geographic degrees (source: towns.json, geography.json)
 //   {x, y}      — viewBox units, W×H, origin top-left (project() output)
 //   viewBox     — the pan/zoom window over that space (vb)
 //
@@ -29,6 +37,12 @@
 //   through `fill`/`stroke` attributes, so a theme change on <body> restyles the
 //   map with no redraw. applyTheme() exists only to satisfy the interface the
 //   world game's globe needed.
+//
+// Zooming:
+//   Line work uses vector-effect="non-scaling-stroke", so the browser holds
+//   every stroke at a constant screen width however far the viewBox is zoomed —
+//   no manual counter-scaling. Only dot radii and label sizes, which are
+//   geometry rather than stroke, are adjusted by hand in applyViewBox().
 
 import { calculateRing } from '../lib/ring_calculator.js';
 
@@ -61,6 +75,16 @@ const HIT_R = 9;       // invisible tap target around each dot
 const EARTH_R = 6371;
 
 const RING_COLORS = ['#3b82f6', '#f97316', '#a855f7', '#ec4899', '#eab308', '#10b981'];
+
+const LABEL_BASE = 9;   // label size in viewBox units at zoom 1
+// Counter-scaling a label by the full zoom factor holds it at a constant size on
+// screen, which is what the world game did. Here the labels should grow as the
+// player zooms into a cluster — that is the point of zooming in on Auckland or
+// the Bay of Plenty. An exponent below 1 under-corrects deliberately: on-screen
+// size ends up proportional to zoom^(1 - LABEL_ZOOM_EXP), so labels are about
+// 2.2x larger at maximum zoom. Set it to 1 to go back to fixed-size labels.
+const LABEL_ZOOM_EXP = 0.75;
+const labelSizeFor = scale => LABEL_BASE * Math.pow(scale, LABEL_ZOOM_EXP);
 
 function project(lat, lng) {
   return {
@@ -107,6 +131,9 @@ const el = (tag, attrs) => {
   return n;
 };
 
+// Stroked line work that should keep its width on screen at every zoom level.
+const stroked = (tag, attrs) => el(tag, { ...attrs, 'vector-effect': 'non-scaling-stroke' });
+
 export function createMap(container, towns, onGuess, difficulty) {
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
@@ -124,48 +151,82 @@ export function createMap(container, towns, onGuess, difficulty) {
 
   svg.appendChild(el('rect', { width: W, height: H, fill: 'var(--map-ocean)' }));
 
-  // Painted in draw order: grid under land, land under rings, rings under dots.
-  const gridGroup = el('g', {});
-  const landGroup = el('g', {});
-  const ringsGroup = el('g', {});
-  const dotsGroup = el('g', {});
-  svg.append(gridGroup, landGroup, ringsGroup, dotsGroup);
+  // Painted in draw order — see the layer note at the top of this file.
+  const gridGroup   = el('g', {});
+  const landGroup   = el('g', {});  // fill only, no stroke
+  const borderGroup = el('g', {});  // region boundaries
+  const lakeGroup   = el('g', {});
+  const coastGroup  = el('g', {});  // country outline, drawn over the borders
+  const ringsGroup  = el('g', {});
+  const dotsGroup   = el('g', {});
+  svg.append(gridGroup, landGroup, borderGroup, lakeGroup, coastGroup,
+             ringsGroup, dotsGroup);
 
   if (difficulty.showGrid) {
     // Whole degrees. Two-degree spacing gives ~7 lines each way — enough to read
     // position off, sparse enough not to compete with the coastline.
     for (let lng = 168; lng <= 178; lng += 2) {
       const { x } = project(0, lng);
-      gridGroup.appendChild(el('line', {
+      gridGroup.appendChild(stroked('line', {
         x1: x, y1: 0, x2: x, y2: H,
         stroke: 'var(--map-grid)', 'stroke-width': 0.5,
       }));
     }
     for (let lat = -46; lat <= -35; lat += 2) {
       const { y } = project(lat, 0);
-      gridGroup.appendChild(el('line', {
+      gridGroup.appendChild(stroked('line', {
         x1: 0, y1: y, x2: W, y2: y,
         stroke: 'var(--map-grid)', 'stroke-width': 0.5,
       }));
     }
   }
 
-  // Coastline is 80KB — fetched rather than imported so the first paint (ocean,
-  // grid, dots) is not blocked on it. The land simply appears a moment later.
-  fetch(new URL('../data/coastline.json', import.meta.url))
+  // Geography is 213KB (63KB over the wire) — fetched rather than imported so
+  // the first paint (ocean, grid, dots) is not blocked on it. The land, borders
+  // and lakes appear together a moment later.
+  const toScreen = ring => toPath(ring.map(([lat, lng]) => project(lat, lng)));
+
+  fetch(new URL('../data/geography.json', import.meta.url))
     .then(r => r.json())
-    .then(({ rings }) => {
-      for (const ring of rings) {
-        landGroup.appendChild(el('path', {
-          d: toPath(ring.map(([lat, lng]) => project(lat, lng))),
-          fill: 'var(--map-land)',
-          stroke: 'var(--map-coast)',
-          'stroke-width': 0.6,
+    .then(({ coast, regions, lakes }) => {
+      for (const ring of coast) {
+        const d = toScreen(ring);
+        landGroup.appendChild(el('path', { d, fill: 'var(--map-land)' }));
+        coastGroup.appendChild(stroked('path', {
+          d, fill: 'none',
+          stroke: 'var(--map-coast)', 'stroke-width': 0.6,
+          'stroke-linejoin': 'round',
+        }));
+      }
+      // Borders sit under the coast layer, so only their inland runs are
+      // visible; the shared coastal edges are covered by the outline above.
+      for (const region of regions) {
+        for (const ring of region.rings) {
+          const path = stroked('path', {
+            d: toScreen(ring), fill: 'none',
+            stroke: 'var(--map-border)', 'stroke-width': 0.5,
+            'stroke-linejoin': 'round',
+          });
+          const title = el('title', {});
+          title.textContent = region.name;
+          path.appendChild(title);
+          borderGroup.appendChild(path);
+        }
+      }
+      // Lakes need their own fill rather than reusing --map-ocean. In the dark
+      // theme the ocean is near-black and the land only a shade lighter, so an
+      // ocean-filled lake vanishes; --map-lake-fill is a blue that reads as
+      // water against land in both themes.
+      for (const ring of lakes) {
+        lakeGroup.appendChild(stroked('path', {
+          d: toScreen(ring),
+          fill: 'var(--map-lake-fill)',
+          stroke: 'var(--map-lake)', 'stroke-width': 0.4,
           'stroke-linejoin': 'round',
         }));
       }
     })
-    .catch(e => console.error('Failed to load coastline.json:', e));
+    .catch(e => console.error('Failed to load geography.json:', e));
 
   // ── Pan and zoom ───────────────────────────────────────────────────────────
 
@@ -175,22 +236,18 @@ export function createMap(container, towns, onGuess, difficulty) {
 
   function applyViewBox() {
     svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
-    // Dots and rings are drawn in viewBox units, so zooming would inflate them.
-    // Counter-scale everything that should stay a constant size on screen.
+    // Strokes look after themselves (vector-effect). Dot radii and label sizes
+    // are geometry, so they still have to be corrected by hand: dots hold a
+    // constant screen size, labels deliberately grow — see LABEL_ZOOM_EXP.
     const scale = vb.w / W;
+    const labelSize = labelSizeFor(scale);
     dots.forEach(d => {
       d.circle.setAttribute('r', d.baseR * scale);
       d.hit.setAttribute('r', HIT_R * scale);
-      if (d.label) d.label.setAttribute('font-size', 9 * scale);
-    });
-    ringsGroup.querySelectorAll('path').forEach(p => {
-      p.setAttribute('stroke-width', 0.8 * scale);
-    });
-    gridGroup.querySelectorAll('line').forEach(l => {
-      l.setAttribute('stroke-width', 0.5 * scale);
-    });
-    landGroup.querySelectorAll('path').forEach(p => {
-      p.setAttribute('stroke-width', 0.6 * scale);
+      d.label.setAttribute('font-size', labelSize);
+      d.label.setAttribute('x', d.x + 6 * scale);
+      d.label.setAttribute('y', d.y + labelSize / 3);
+      d.label.setAttribute('stroke-width', labelSize * 0.28); // halo, proportional to the text
     });
   }
 
@@ -316,7 +373,9 @@ export function createMap(container, towns, onGuess, difficulty) {
     g.append(hit, circle, label, title);
     g.addEventListener('click', () => { if (!hasDragged) onGuess(town); });
     dotsGroup.appendChild(g);
-    dots.set(town.name, { g, circle, hit, label, baseR: 3 });
+    // x/y are kept so applyViewBox can re-offset the label as it changes size —
+    // the gap between dot and text has to track the text, not stay fixed.
+    dots.set(town.name, { g, circle, hit, label, baseR: 3, x, y });
   });
 
   wrap.appendChild(svg);
@@ -344,28 +403,25 @@ export function createMap(container, towns, onGuess, difficulty) {
   function drawRings(guesses) {
     ringsGroup.replaceChildren();
     if (!difficulty.showRings) return;
-    const scale = vb.w / W;
     guesses.forEach((g, i) => {
       if (g.distance == null || g.correct) return;
       const { innerRadius, outerRadius } = calculateRing(g.distance, i + 1);
       const color = RING_COLORS[i % RING_COLORS.length];
-      ringsGroup.appendChild(el('path', {
+      ringsGroup.appendChild(stroked('path', {
         d: annulusPath(g.lat, g.lng, innerRadius, outerRadius),
         fill: color, 'fill-opacity': 0.13, 'fill-rule': 'evenodd',
-        stroke: color, 'stroke-opacity': 0.45, 'stroke-width': 0.8 * scale,
+        stroke: color, 'stroke-opacity': 0.45, 'stroke-width': 0.8,
       }));
     });
   }
 
   function paint(dot, { fill, r, opacity = 1, labelled = false }) {
-    const scale = vb.w / W;
     dot.baseR = r;
     dot.circle.setAttribute('fill', fill);
-    dot.circle.setAttribute('r', r * scale);
     dot.circle.setAttribute('opacity', opacity);
     dot.label.setAttribute('opacity', labelled ? 1 : 0);
-    dot.label.setAttribute('font-size', 9 * scale);
     if (labelled) dot.g.parentNode.appendChild(dot.g); // raise above its neighbours
+    applyViewBox(); // resize the dot and reposition its label for the current zoom
   }
 
   return {

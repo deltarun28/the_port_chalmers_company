@@ -33,12 +33,12 @@ nz-towns-game/
 │
 ├── data/
 │   ├── towns.json           ← source of truth for all town data (generated)
-│   └── coastline.json       ← [lat,lng] rings for the map outline (generated)
+│   └── geography.json       ← coast, region borders and lakes (generated)
 │
 ├── scripts/
 │   ├── generate_towns.py             ← builds towns.json from Wikidata + GeoNames
 │   ├── generate_difficulty_scores.py ← adds difficulty tiers to towns.json
-│   └── generate_coastline.py         ← builds coastline.json from Natural Earth
+│   └── generate_geography.py         ← builds geography.json from Natural Earth
 │
 ├── lib/                     ← game logic (no DOM, no UI)
 │   ├── constants.js         ← MAX_DISTANCE, shared by every distance-to-colour scale
@@ -142,18 +142,28 @@ Plus a `difficulty` field (1–5) added by `generate_difficulty_scores.py`.
 - There is no `flag` or `country` field — the world game's equivalent — and no
   distance table.
 
-### `data/coastline.json`
-`{ bounds, rings }` where each ring is an array of `[lat, lng]` pairs.
+### `data/geography.json`
+`{ bounds, coast, regions, lakes }`. Every ring is an array of `[lat, lng]`
+pairs; `regions` entries are `{ name, rings }`.
 
 Natural Earth **10m**, not the 50m the world game used. A single country can
-afford the detail: the whole outline is ~4,100 points and 80KB, a tenth of the
-world file at five times the resolution. At 50m the Marlborough Sounds,
-Fiordland and Banks Peninsula dissolve into smudges, and those are exactly the
-landmarks a player reasons about.
+afford the detail: the coast alone is ~4,100 points, a tenth of the world file
+at five times the resolution. At 50m the Marlborough Sounds, Fiordland and Banks
+Peninsula dissolve into smudges, and those are exactly the landmarks a player
+reasons about. All three layers together are 213KB, about 63KB gzipped over the
+wire.
 
-Stored as raw coordinates rather than a pre-projected SVG path, so the
-projection lives in one place (`ui/map.js`) and the framing can be retuned
-without re-running the generator.
+`regions` are the 16 modern regional councils and unitary authorities — the same
+names `towns.json` tags each town with, so the boundary a player sees on the map
+is the one named on their guess card. Natural Earth's legal titles are shortened
+to match (`Marlborough District` → `Marlborough`), and its uninhabited island
+groups are dropped by filtering on authority type. These are deliberately *not*
+the historical provinces, which were abolished in 1876 and would match nothing
+else in the game.
+
+Stored as raw coordinates rather than pre-projected SVG paths, so the projection
+lives in one place (`ui/map.js`) and the framing can be retuned without
+re-running the generator.
 
 ---
 
@@ -177,9 +187,9 @@ ambiguity. Here every town sits inside one 1,400km strip and triangulation is
 easy for all of them — what varies is whether the player has heard of the place.
 So the score is 65% obscurity (population rank) and 35% local density.
 
-### `scripts/generate_coastline.py`
-Natural Earth 10m → `data/coastline.json`. Only needs re-running to change the
-resolution or which islands are included.
+### `scripts/generate_geography.py`
+Natural Earth 10m → `data/geography.json` (coast, region borders, lakes). Only
+needs re-running to change the resolution or which features are included.
 
 ---
 
@@ -270,8 +280,20 @@ NZ frame. Clicking a dot emits `onGuess(townObject)`.
 **Why flat and not a globe:** the world game needed an orthographic canvas globe
 because no flat projection shows every continent without wrecking the distances
 the game runs on. One country 1,400km end to end has no such problem, and SVG
-buys crisp text, real hit targets and free zooming. This module is ~400 lines
-against the world game's 780, and the whole globe renderer is gone.
+buys crisp text, real hit targets and free zooming. The whole globe renderer is
+gone.
+
+**Layers, in paint order:** ocean → grid → land fill → region borders → lakes →
+coast stroke → rings → dots. The coast stroke is its own layer *on top of* the
+borders rather than a stroke on the land fill, because region polygons and the
+country outline come from two different Natural Earth files whose coastal edges
+do not align to the pixel — stroking both would show a doubled, slightly offset
+shoreline. Drawing the coast last covers the seam, so only the inland runs of
+each border are visible.
+
+**Lakes get their own fill token** (`--map-lake-fill`) rather than reusing
+`--map-ocean`. In the dark theme the ocean is near-black and the land only a
+shade lighter, so an ocean-filled lake disappears entirely.
 
 **Rules:**
 - Same `onGuess` contract as `input.js`.
@@ -282,6 +304,13 @@ against the world game's 780, and the whole globe renderer is gone.
   scale grows toward the poles, so across NZ's 13° of latitude a Wellington
   kilometre is ~10% smaller on screen than an Invercargill one; a plain circle
   would be visibly wrong at the ends of the country.
+- All line work carries `vector-effect="non-scaling-stroke"`, so the browser
+  holds strokes at a constant screen width at any zoom. Only dot radii and label
+  sizes are corrected by hand in `applyViewBox()`.
+- **Labels grow as you zoom in.** Counter-scaling by the full zoom factor would
+  hold them at a fixed screen size; `LABEL_ZOOM_EXP` (0.75) under-corrects on
+  purpose, so on-screen size is proportional to `zoom^0.25` and a label is about
+  2.2x larger at maximum zoom. Set it to 1 for fixed-size labels.
 - On Hard the dots are at `opacity: 0` but still in the DOM and still clickable,
   so the map remains an input for a player who knows where they are pointing.
 
