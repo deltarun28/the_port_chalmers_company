@@ -1,7 +1,7 @@
 // Converts a guess's distance and attempt number into the inner/outer radii
 // (in km) of the ring to draw on the map.
 // Pure function — no imports, no side effects.
-// Tested in ring_calculator.test.js (run with: node --test).
+// Tested in logic.test.js (run with: node --test lib/logic.test.js).
 //
 // Rings shrink with successive guesses so early guesses give wide, coarse bands
 // and later guesses give narrower, more informative rings.

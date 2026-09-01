@@ -10,6 +10,10 @@ Three layers, all from Natural Earth 10m:
   coast    ne_10m_admin_0_countries, New Zealand feature
   regions  ne_10m_admin_1_states_provinces, the 16 mainland regions
   lakes    ne_10m_lakes, clipped to the mainland
+  rivers   ne_10m_rivers_lake_centerlines, clipped to the mainland
+
+Terrain shading is NOT built here — it is a raster, and comes from
+generate_terrain.py instead.
 
 The world game used Natural Earth 50m because it had to draw every continent.
 A single country can afford 10m: the whole outline is ~4,100 points, a tenth of
@@ -38,6 +42,7 @@ SOURCES = {
     'coast':   'ne_10m_admin_0_countries.geojson',
     'regions': 'ne_10m_admin_1_states_provinces.geojson',
     'lakes':   'ne_10m_lakes.geojson',
+    'rivers':  'ne_10m_rivers_lake_centerlines.geojson',
 }
 
 # Mainland only. New Zealand's admin-0 geometry also carries the Chatham Islands
@@ -83,6 +88,16 @@ def load(key):
         print(f'  cached: {name}')
     with open(path, encoding='utf-8') as f:
         return json.load(f)
+
+
+def line_strings(geometry):
+    """Every line in a LineString or MultiLineString. Rivers are open paths,
+    not closed rings, so they cannot go through exterior_rings()."""
+    if geometry['type'] == 'MultiLineString':
+        return geometry['coordinates']
+    if geometry['type'] == 'LineString':
+        return [geometry['coordinates']]
+    return []
 
 
 def exterior_rings(geometry):
@@ -143,6 +158,18 @@ def main():
     for r in regions:
         print(f'    {r["name"]}')
 
+    print('Rivers...')
+    river_data = load('rivers')
+    rivers = []
+    for f in river_data['features']:
+        for ln in line_strings(f['geometry']):
+            # 2 points is the minimum for a line; the ring threshold does not
+            # apply here, as a short river segment is still worth drawing.
+            if len(ln) >= 2 and in_mainland(ln):
+                rivers.append(convert(ln))
+    rivers.sort(key=len, reverse=True)
+    print(f'  {len(rivers)} rivers, {sum(len(r) for r in rivers)} points')
+
     print('Lakes...')
     lake_data = load('lakes')
     lakes = []
@@ -162,8 +189,8 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     out = os.path.join(DATA_DIR, 'geography.json')
     with open(out, 'w') as f:
-        json.dump({'bounds': bounds, 'coast': coast,
-                   'regions': regions, 'lakes': lakes},
+        json.dump({'bounds': bounds, 'coast': coast, 'regions': regions,
+                   'lakes': lakes, 'rivers': rivers},
                   f, separators=(',', ':'))
 
     print(f'\nbounds: {bounds}')

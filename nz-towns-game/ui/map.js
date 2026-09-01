@@ -19,8 +19,17 @@
 //   over that span is close enough to true scale that the player can eyeball
 //   distances, and SVG gives crisp text, real hit targets and free zooming.
 //
-// Map layers, in paint order (data/geography.json):
-//   ocean → grid → land fill → region borders → lakes → coast stroke → rings → dots
+// Map layers, in paint order:
+//   ocean → grid → land fill → terrain → region borders → rivers → lakes
+//   → coast stroke → rings → dots
+//
+// Terrain (data/terrain.png) is the one raster in an otherwise vector map. It
+// is not interactive, never needs to be crisp, and reads as texture rather than
+// as lines, so drawing it as thousands of contour paths would cost a great deal
+// for something the player should barely notice. It is clipped to the land and
+// composited with mix-blend-mode: soft-light, which is what lets a single
+// greyscale file work in both themes — the image carries only light and shade
+// and takes its colour from the land underneath.
 //   The coast stroke is drawn as its own layer ON TOP of the region borders
 //   rather than as a stroke on the land fill. Region polygons and the country
 //   outline come from two different Natural Earth files whose coastal edges do
@@ -134,7 +143,14 @@ const el = (tag, attrs) => {
 // Stroked line work that should keep its width on screen at every zoom level.
 const stroked = (tag, attrs) => el(tag, { ...attrs, 'vector-effect': 'non-scaling-stroke' });
 
+let mapInstances = 0;
+
 export function createMap(container, towns, onGuess, difficulty) {
+  // Each map gets its own clip-path id. index.html tears down and rebuilds the
+  // map when difficulty changes, and two elements sharing an id would leave the
+  // new map clipping against the old one's path.
+  const clipId = `nz-land-clip-${++mapInstances}`;
+
   const wrap = document.createElement('div');
   wrap.style.position = 'relative';
   container.appendChild(wrap);
@@ -152,15 +168,18 @@ export function createMap(container, towns, onGuess, difficulty) {
   svg.appendChild(el('rect', { width: W, height: H, fill: 'var(--map-ocean)' }));
 
   // Painted in draw order — see the layer note at the top of this file.
+  const defs        = el('defs', {});
   const gridGroup   = el('g', {});
   const landGroup   = el('g', {});  // fill only, no stroke
+  const terrainGroup = el('g', {});
   const borderGroup = el('g', {});  // region boundaries
+  const riverGroup  = el('g', {});
   const lakeGroup   = el('g', {});
   const coastGroup  = el('g', {});  // country outline, drawn over the borders
   const ringsGroup  = el('g', {});
   const dotsGroup   = el('g', {});
-  svg.append(gridGroup, landGroup, borderGroup, lakeGroup, coastGroup,
-             ringsGroup, dotsGroup);
+  svg.append(defs, gridGroup, landGroup, terrainGroup, borderGroup, riverGroup,
+             lakeGroup, coastGroup, ringsGroup, dotsGroup);
 
   if (difficulty.showGrid) {
     // Whole degrees. Two-degree spacing gives ~7 lines each way — enough to read
@@ -188,16 +207,34 @@ export function createMap(container, towns, onGuess, difficulty) {
 
   fetch(new URL('../data/geography.json', import.meta.url))
     .then(r => r.json())
-    .then(({ coast, regions, lakes }) => {
+    .then(({ coast, regions, lakes, rivers }) => {
+      // The clip path is built from the same rings as the land fill, so the
+      // hillshade can never bleed into the sea however the frame is retuned.
+      const clip = el('clipPath', { id: clipId });
       for (const ring of coast) {
         const d = toScreen(ring);
         landGroup.appendChild(el('path', { d, fill: 'var(--map-land)' }));
+        clip.appendChild(el('path', { d }));
         coastGroup.appendChild(stroked('path', {
           d, fill: 'none',
           stroke: 'var(--map-coast)', 'stroke-width': 0.6,
           'stroke-linejoin': 'round',
         }));
       }
+      defs.appendChild(clip);
+
+      const terrain = el('image', {
+        href: new URL('../data/terrain.png', import.meta.url).href,
+        x: 0, y: 0, width: W, height: H,
+        preserveAspectRatio: 'none',
+        'clip-path': `url(#${clipId})`,
+      });
+      // Generated against exactly these frame constants, so it lines up with
+      // the coastline without any transform. See scripts/generate_terrain.py.
+      terrain.style.mixBlendMode = 'soft-light';
+      terrain.style.opacity = 'var(--map-terrain-opacity)';
+      terrain.setAttribute('aria-hidden', 'true');
+      terrainGroup.appendChild(terrain);
       // Borders sit under the coast layer, so only their inland runs are
       // visible; the shared coastal edges are covered by the outline above.
       for (const region of regions) {
@@ -213,6 +250,22 @@ export function createMap(container, towns, onGuess, difficulty) {
           borderGroup.appendChild(path);
         }
       }
+      // Rivers sit under the lakes so a river meeting a lake disappears into
+      // it rather than drawing a line across open water.
+      for (const line of rivers) {
+        riverGroup.appendChild(stroked('path', {
+          // Rivers are open paths, so build the path without closing it —
+          // toPath() is for rings and would join mouth back to source.
+          d: line.map(([lat, lng], i) => {
+            const p = project(lat, lng);
+            return `${i ? 'L' : 'M'}${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+          }).join(''),
+          fill: 'none',
+          stroke: 'var(--map-river)', 'stroke-width': 0.45,
+          'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+        }));
+      }
+
       // Lakes need their own fill rather than reusing --map-ocean. In the dark
       // theme the ocean is near-black and the land only a shade lighter, so an
       // ocean-filled lake vanishes; --map-lake-fill is a blue that reads as
@@ -233,6 +286,7 @@ export function createMap(container, towns, onGuess, difficulty) {
   let vb = { x: 0, y: 0, w: W, h: H };
   const dots = new Map();
   let hasDragged = false;
+  let lastGuesses = [];  // kept so the fit control has something to frame
 
   function applyViewBox() {
     svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
@@ -256,6 +310,34 @@ export function createMap(container, towns, onGuess, difficulty) {
     vb.h = vb.w * (H / W);
     vb.x = Math.max(0, Math.min(W - vb.w, vb.x));
     vb.y = Math.max(0, Math.min(H - vb.h, vb.y));
+  }
+
+  // Frame a set of towns with a margin, instead of zooming about the centre of
+  // the map. The +/- controls zoom on the viewBox midpoint, which for New
+  // Zealand is open ocean east of Kaikōura — so zooming in after a few guesses
+  // walks away from everything the player cares about.
+  function fitTo(points, marginFrac = 0.35) {
+    if (!points.length) return;
+    const xs = points.map(p => project(p.lat, p.lng).x);
+    const ys = points.map(p => project(p.lat, p.lng).y);
+    let minX = Math.min(...xs), maxX = Math.max(...xs);
+    let minY = Math.min(...ys), maxY = Math.max(...ys);
+
+    // A single point has no extent, so give it an arbitrary but sane window
+    // rather than dividing by zero on the way to infinite zoom.
+    const spanX = Math.max(maxX - minX, W / 12);
+    const margin = spanX * marginFrac;
+    let w = spanX + margin * 2;
+    // Grow width if the vertical extent is what binds, so both fit.
+    const spanY = Math.max(maxY - minY, H / 12) + margin * 2;
+    w = Math.max(w, spanY * (W / H));
+
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    vb.w = w;
+    vb.h = w * (H / W);
+    vb.x = cx - vb.w / 2;
+    vb.y = cy - vb.h / 2;
+    clamp(); applyViewBox();
   }
 
   function zoomAt(px, py, factor) {
@@ -384,7 +466,8 @@ export function createMap(container, towns, onGuess, difficulty) {
   controls.className = 'map-controls';
   controls.innerHTML =
     `<button data-action="in" aria-label="Zoom in">+</button>` +
-    `<button data-action="reset" aria-label="Reset view">⌂</button>` +
+    `<button data-action="fit" aria-label="Frame your guesses" title="Frame your guesses">⊹</button>` +
+    `<button data-action="reset" aria-label="Reset view" title="Whole country">⌂</button>` +
     `<button data-action="out" aria-label="Zoom out">−</button>`;
   controls.addEventListener('click', e => {
     const action = e.target.dataset.action;
@@ -392,6 +475,8 @@ export function createMap(container, towns, onGuess, difficulty) {
     if (action === 'reset') {
       vb = { x: 0, y: 0, w: W, h: H };
       clamp(); applyViewBox();
+    } else if (action === 'fit') {
+      fitTo(lastGuesses);
     } else {
       zoomAt(vb.x + vb.w / 2, vb.y + vb.h / 2, action === 'in' ? 0.65 : 1.5);
     }
@@ -425,7 +510,11 @@ export function createMap(container, towns, onGuess, difficulty) {
   }
 
   return {
+    // Frame these towns. index.html calls this on game end so the reveal is
+    // always on screen, however far the player had panned away.
+    fit(points) { fitTo(points); },
     update(guesses, status, target) {
+      lastGuesses = guesses;
       drawRings(guesses);
       guesses.forEach(g => {
         const dot = dots.get(g.name);
@@ -442,6 +531,7 @@ export function createMap(container, towns, onGuess, difficulty) {
       }
     },
     reset() {
+      lastGuesses = [];
       ringsGroup.replaceChildren();
       dots.forEach(dot => paint(dot, {
         fill: 'var(--dot-idle)',

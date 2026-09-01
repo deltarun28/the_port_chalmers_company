@@ -33,25 +33,29 @@ nz-towns-game/
 │
 ├── data/
 │   ├── towns.json           ← source of truth for all town data (generated)
-│   └── geography.json       ← coast, region borders and lakes (generated)
+│   ├── geography.json       ← coast, borders, lakes, rivers (generated)
+│   └── terrain.png          ← hillshade overlay (generated)
 │
 ├── scripts/
 │   ├── generate_towns.py             ← builds towns.json from Wikidata + GeoNames
 │   ├── generate_difficulty_scores.py ← adds difficulty tiers to towns.json
-│   └── generate_geography.py         ← builds geography.json from Natural Earth
+│   ├── generate_geography.py         ← builds geography.json from Natural Earth
+│   └── generate_terrain.py           ← builds terrain.png from AWS DEM tiles
 │
 ├── lib/                     ← game logic (no DOM, no UI)
 │   ├── constants.js         ← MAX_DISTANCE, shared by every distance-to-colour scale
-│   ├── daily_target.js
-│   ├── difficulty.js        ← difficulty config (maxGuesses, showGrid, showRings, showDots)
-│   ├── distance.js          ← haversine; replaces the world game's distance table
+│   ├── daily_target.js      ← daily and random target selection, national or per-region
+│   ├── difficulty.js        ← difficulty config (maxGuesses, showGrid/Rings/Dots/Bearing)
+│   ├── distance.js          ← haversine + bearing; replaces the world game's table
 │   ├── game.js
 │   ├── ring_calculator.js   ← pure function: distance + guess# → ring inner/outer radius
+│   ├── storage.js           ← saves/restores an in-progress daily session
 │   └── validator.js         ← freetext → town, macron-insensitive
 │
 ├── ui/                      ← everything the player sees and interacts with
 │   ├── difficulty_picker.js ← difficulty selector buttons
 │   ├── input.js             ← autocomplete text box
+│   ├── region_picker.js     ← restricts a session to one region
 │   ├── map.js               ← flat SVG map of New Zealand
 │   ├── results.js           ← guess history cards
 │   └── share.js             ← end-of-session score card
@@ -143,8 +147,9 @@ Plus a `difficulty` field (1–5) added by `generate_difficulty_scores.py`.
   distance table.
 
 ### `data/geography.json`
-`{ bounds, coast, regions, lakes }`. Every ring is an array of `[lat, lng]`
-pairs; `regions` entries are `{ name, rings }`.
+`{ bounds, coast, regions, lakes, rivers }`. Every ring is an array of
+`[lat, lng]` pairs; `regions` entries are `{ name, rings }`; `rivers` are open
+lines rather than closed rings, so they are drawn without a closing segment.
 
 Natural Earth **10m**, not the 50m the world game used. A single country can
 afford the detail: the coast alone is ~4,100 points, a tenth of the world file
@@ -164,6 +169,26 @@ else in the game.
 Stored as raw coordinates rather than pre-projected SVG paths, so the projection
 lives in one place (`ui/map.js`) and the framing can be retuned without
 re-running the generator.
+
+### `data/terrain.png`
+An 1200x1644 greyscale hillshade, and the only raster in the project.
+
+Terrain is not interactive, never needs to be crisp, and reads as texture rather
+than as lines — so drawing it as contour polygons would mean thousands of paths
+for something the player should barely notice. It is clipped to the land and
+composited with `mix-blend-mode: soft-light`, which is what lets one greyscale
+file serve both themes: the image carries only light and shade and takes its
+colour from the land underneath.
+
+Two things make it line up with the vector map. It is generated against exactly
+the frame constants in `ui/map.js` (asserted in the script), and its source —
+AWS terrarium DEM tiles — is Web Mercator, the same projection `map.js` uses, so
+the resample is a linear coordinate lookup rather than a reprojection.
+
+The neutral point is **not** mid-grey. A flat surface lit from 45° returns
+`cos(zenith)`, so centring the output on 0.5 maps every flat paddock to 157 and
+the overlay silently lightens the whole country. It is centred on the
+flat-ground value instead, leaving 83% of the image at exactly 128.
 
 ---
 
@@ -188,8 +213,16 @@ easy for all of them — what varies is whether the player has heard of the plac
 So the score is 65% obscurity (population rank) and 35% local density.
 
 ### `scripts/generate_geography.py`
-Natural Earth 10m → `data/geography.json` (coast, region borders, lakes). Only
-needs re-running to change the resolution or which features are included.
+Natural Earth 10m → `data/geography.json` (coast, region borders, lakes,
+rivers). Only needs re-running to change the resolution or which features are
+included.
+
+### `scripts/generate_terrain.py`
+AWS terrarium DEM tiles → `data/terrain.png`. Needs `numpy` and `Pillow`. It
+caches ~40 downloaded tiles in `scripts/.cache/dem/`. Re-run only to change the
+lighting, exaggeration or resolution — **and re-run it if the frame constants in
+`ui/map.js` ever change**, or the shading will slide out of register with the
+coastline.
 
 ---
 
@@ -200,6 +233,13 @@ They can be run and tested in Node.js with no browser.
 
 ### `lib/distance.js`
 `distanceKm(a, b)` — haversine, rounded to whole kilometres.
+`bearingDeg(a, b)` — initial great-circle bearing, degrees clockwise from north.
+
+Bearing is the strongest clue in the game. Distance alone leaves the answer
+somewhere on a circle; distance plus direction leaves one point. It is the
+*initial* bearing (forward azimuth), so a→b is not the reciprocal of b→a — over
+New Zealand the difference is under a degree, but the arrow shown is the
+direction to set off in, which is the honest thing to display.
 
 The world game shipped a pre-computed `distances.json` because 195 capitals
 produce 37,830 pairs. That does not scale: 187 towns are 17,391 pairs, and the
@@ -214,12 +254,26 @@ scale in the UI reads it from here so the heat bar and the share card cannot
 drift apart. The world game hardcoded 20,000 in two files.
 
 ### `lib/daily_target.js`
-Returns today's five targets, one per difficulty tier, seeded from the date.
+`getDailyTargets(towns, dateStr, region, rounds)` and `getRandomTargets(...)`.
 
-**In:** towns array, date (YYYY-MM-DD string)
-**Out:** array of 5 town objects, easy to hard
+**Rules:** `getDailyTargets` is pure — the same date, region and round count
+always return the same towns. `getRandomTargets` is the practice-mode twin and
+is the only place randomness enters target selection.
 
-**Rules:** pure function, same date always returns the same towns, no randomness.
+Towns are sorted by difficulty, cut into `rounds` contiguous **bands**, and one
+is drawn from each. Over the whole country the bands land almost exactly on the
+five difficulty tiers, because the tiers are equal percentile buckets to begin
+with — so a national session still runs 1★ to 5★.
+
+Bands rather than "one town per tier" exist for region mode. Nelson has one town
+in the list and Gisborne three, and several regions have no town at all in some
+tier; picking per tier breaks on those, while banding degrades into a shorter
+session with the widest spread the region can support. **A session is therefore
+not always five rounds**, and everything downstream reads `targets.length`
+rather than assuming five — including the score denominator on the share card.
+
+The region is mixed into the seed, so "Otago today" is a different puzzle from
+"all of New Zealand today" rather than the same one filtered.
 
 ### `lib/validator.js`
 Takes a raw string and returns the matching town object, or `null`.
@@ -257,6 +311,24 @@ floor.
 ### `lib/scoring.js`
 Round outcome → points (0–200). Unchanged from the world game.
 
+### `lib/storage.js`
+Saves and restores an in-progress **daily** session, so closing the tab does not
+throw away five rounds of a game people dip into across a day.
+
+**Rules:**
+- Only daily sessions are persisted. Random sessions are deliberately throwaway:
+  their targets are not derived from the date, so restoring one would mean
+  storing the towns themselves, and "New game" is a request to discard anyway.
+- Guesses are stored **as names only**. Everything else about a town is re-read
+  from `towns.json` on restore and every distance and bearing is recomputed by
+  replaying the guesses through `game.js`, so a regenerated town list or a
+  changed formula can never leave stale numbers embedded in storage.
+- A save is rejected unless the date, difficulty and region all match — those
+  three determine which towns were drawn.
+- **Nothing here throws.** `localStorage` can be unavailable in private windows
+  and can throw on read as well as write when site data is blocked, so every
+  access is guarded and failure degrades to "no saved session".
+
 ---
 
 ## Layer 4 — Inputs
@@ -264,6 +336,13 @@ Round outcome → points (0–200). Unchanged from the world game.
 Both input modules emit the **same event** — `onGuess(townObject)` — and are
 otherwise completely independent. Either can be removed without affecting the
 other.
+
+### `ui/region_picker.js`
+A `<select>` restricting the session to one region, emitting the region name or
+`null` for the whole country. Options are derived from the town data, never
+hardcoded, and each shows its town count — which varies from 29 (Waikato) to 1
+(Nelson) and sets the expectation that a small region is a short session rather
+than a broken one.
 
 ### `ui/input.js`
 Autocomplete text box. Filters `towns.json` as the player types, matching name,
@@ -283,8 +362,10 @@ the game runs on. One country 1,400km end to end has no such problem, and SVG
 buys crisp text, real hit targets and free zooming. The whole globe renderer is
 gone.
 
-**Layers, in paint order:** ocean → grid → land fill → region borders → lakes →
-coast stroke → rings → dots. The coast stroke is its own layer *on top of* the
+**Layers, in paint order:** ocean → grid → land fill → terrain → region borders
+→ rivers → lakes → coast stroke → rings → dots. Rivers sit under lakes so a
+river meeting a lake disappears into it rather than drawing a line across open
+water. The coast stroke is its own layer *on top of* the
 borders rather than a stroke on the land fill, because region polygons and the
 country outline come from two different Natural Earth files whose coastal edges
 do not align to the pixel — stroking both would show a doubled, slightly offset
@@ -311,6 +392,14 @@ shade lighter, so an ocean-filled lake disappears entirely.
   hold them at a fixed screen size; `LABEL_ZOOM_EXP` (0.75) under-corrects on
   purpose, so on-screen size is proportional to `zoom^0.25` and a label is about
   2.2x larger at maximum zoom. Set it to 1 for fixed-size labels.
+- **`fitTo()` frames a set of towns**, exposed as `fit()` and as the ⊹ control.
+  The +/− buttons zoom about the viewBox midpoint, which for New Zealand is open
+  ocean east of Kaikōura, so zooming in after a few guesses walks away from
+  everything the player cares about. `index.html` calls `fit()` at the end of a
+  round so the reveal is always on screen.
+- **The land clip path gets a per-instance id.** `index.html` tears down and
+  rebuilds the map when difficulty changes, and two elements sharing an id would
+  leave the new map clipping against the old map's path.
 - On Hard the dots are at `opacity: 0` but still in the DOM and still clickable,
   so the map remains an input for a player who knows where they are pointing.
 
@@ -321,9 +410,19 @@ shade lighter, so an ocean-filled lake disappears entirely.
 Read-only. These receive data and render it. They never modify game state.
 
 ### `ui/results.js`
-Renders one card per guess: slot number, town name, region, distance, heat bar.
-The world game showed a flag here; region takes that slot, being the one extra
-fact that helps a player reason about where they just guessed.
+Renders one card per guess: slot number, town name, region, distance, bearing
+arrow, heat bar. The world game showed a flag here; region takes that slot,
+being the one extra fact that helps a player reason about where they just
+guessed.
+
+The bearing is a single glyph rotated to the exact angle rather than one of
+eight compass arrows — nothing is gained by discarding the precision. The glyph
+points east unrotated, so 90° is subtracted; that offset lives here rather than
+being split across CSS and JS. Whether a bearing is shown at all is a difficulty
+decision (`showBearing`), read from the config passed in.
+
+Population appears on a correct guess and on the reveal. 57 of the 187 towns
+have no published figure, so it is omitted rather than rendered as "null".
 
 ### `ui/share.js`
 Emoji score card for a completed session, copied to the clipboard.
@@ -366,6 +465,12 @@ events together:
 - **Anything that compares two names** must go through `fold()` from
   `validator.js`. Macrons are the single most likely source of a silent bug in
   this codebase.
+- **Never assume a session is five rounds.** Region mode makes it shorter
+  wherever the region has fewer towns; read `targets.length`.
+- **Changing the map frame means regenerating the terrain.** `ui/map.js` and
+  `scripts/generate_terrain.py` share the frame constants, and nothing at
+  runtime will tell you they have drifted — the hillshade just stops matching
+  the coast.
 - **Keep files under ~150 lines.** `ui/map.js` is the deliberate exception; it
   is one coherent renderer and splitting it would spread the projection across
   files.

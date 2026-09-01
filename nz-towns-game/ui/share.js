@@ -27,18 +27,24 @@ function roundEmoji(guesses, won) {
   }).join('') + (won ? '' : '💀');
 }
 
-export function share(container, rounds, difficultyKey) {
+export function share(container, rounds, difficultyKey, region = null) {
   // Local date, not toISOString() (UTC) — the daily target is seeded from the
   // local date in index.html, and the share card must show the same day
   const d = new Date();
   const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const total = rounds.reduce((s, r) => s + r.score, 0);
   const diffLabel = difficultyKey[0].toUpperCase() + difficultyKey.slice(1);
+  // The maximum is derived from the rounds actually played, not fixed at 1000.
+  // Region sessions are shorter wherever the region has fewer than five towns —
+  // Nelson is a single round — so a hardcoded denominator would misreport them.
+  const max = rounds.length * 200;
+  const scope = region ? ` · ${region}` : '';
 
   const lines = rounds.map((r, i) =>
     `${i + 1}. ${r.target.name} — ${roundEmoji(r.guesses, r.won)} +${r.score}`
   );
-  const text = [`🥝 NZ Towns ${date} · ${diffLabel}`, ...lines, `Total: ${total}/1000`].join('\n');
+  const text = [`🥝 NZ Towns ${date}${scope} · ${diffLabel}`,
+                ...lines, `Total: ${total}/${max}`].join('\n');
 
   container.innerHTML = `
     <div class="share-card">
