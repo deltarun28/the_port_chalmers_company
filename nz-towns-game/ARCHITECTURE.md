@@ -376,8 +376,10 @@ each border are visible.
 `--map-ocean`. In the dark theme the ocean is near-black and the land only a
 shade lighter, so an ocean-filled lake disappears entirely.
 
-**Region borders are red, rivers are blue**, and they must stay visibly
-different. Both started out blue — in the outdoor theme, literally the same
+**Region borders are red and dashed, rivers are solid blue**, and they must stay
+visibly different. The dash is not decoration: red against the green land fill
+is exactly the pair red-green colour blindness collapses, so the dash is what
+carries the distinction for those players. Both started out blue — in the outdoor theme, literally the same
 value — which made an administrative line and a waterway read as one feature.
 The outdoor red is a deeper brick rather than a saturated one, because saturated
 red vibrates against the green land fill.

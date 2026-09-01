@@ -243,6 +243,14 @@ export function createMap(container, towns, onGuess, difficulty) {
             d: toScreen(ring), fill: 'none',
             stroke: 'var(--map-border)', 'stroke-width': 0.5,
             'stroke-linejoin': 'round',
+            // Dashed is the cartographic convention for an administrative
+            // boundary, and it carries the distinction from rivers without
+            // relying on colour. Red against a green land fill is exactly the
+            // pair that red-green colour blindness collapses, so the dash is
+            // what makes these readable for those players rather than a
+            // flourish. vector-effect keeps the dash pattern, not just the
+            // stroke width, constant on screen at every zoom.
+            'stroke-dasharray': '4 3',
           });
           const title = el('title', {});
           title.textContent = region.name;
