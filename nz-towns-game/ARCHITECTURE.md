@@ -376,6 +376,12 @@ each border are visible.
 `--map-ocean`. In the dark theme the ocean is near-black and the land only a
 shade lighter, so an ocean-filled lake disappears entirely.
 
+**Region borders are red, rivers are blue**, and they must stay visibly
+different. Both started out blue — in the outdoor theme, literally the same
+value — which made an administrative line and a waterway read as one feature.
+The outdoor red is a deeper brick rather than a saturated one, because saturated
+red vibrates against the green land fill.
+
 **Rules:**
 - Same `onGuess` contract as `input.js`.
 - Knows nothing about the target town.
