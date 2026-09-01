@@ -40,8 +40,11 @@
       --map-ocean:     #0a0e1a;
       --map-land:      #16202e;
       --map-coast:     rgba(255,255,255,0.30);
-      --map-border:    rgba(130,180,220,0.38);
-      --map-river:     rgba(120,175,220,0.42);
+      /* Borders are red so they cannot be mistaken for rivers. Both were blue,
+         which made an administrative line and a waterway read as the same
+         feature — in the outdoor theme they were literally the same value. */
+      --map-border:    rgba(226,110,110,0.55);
+      --map-river:     rgba(110,170,225,0.50);
       --map-lake:      rgba(130,180,220,0.55);
       --map-lake-fill: #1e4a70;
       /* Hillshade strength. Lower in the dark theme: soft-light over a near
@@ -77,8 +80,10 @@
       --map-ocean:     #1565a8;
       --map-land:      #4a7c59;
       --map-coast:     rgba(0,0,0,0.35);
-      --map-border:    rgba(255,255,255,0.5);
-      --map-river:     rgba(255,255,255,0.5);
+      /* On the green land fill a saturated red vibrates, so this is a deeper
+         brick that stays legible without buzzing against the green. */
+      --map-border:    rgba(178,38,38,0.85);
+      --map-river:     rgba(228,244,255,0.75);
       --map-lake:      rgba(255,255,255,0.6);
       --map-lake-fill: #1565a8;
       --map-terrain-opacity: 0.8;
