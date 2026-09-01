@@ -20,7 +20,7 @@
 // games' offline caches, and whichever game you opened last would be the only
 // one that still worked offline.
 const CACHE_PREFIX = 'nz-towns-';
-const CACHE_VERSION = `${CACHE_PREFIX}v2`;
+const CACHE_VERSION = `${CACHE_PREFIX}v3`;
 
 const PRECACHE = [
   './',
@@ -33,14 +33,17 @@ const PRECACHE = [
   './lib/game.js',
   './lib/ring_calculator.js',
   './lib/scoring.js',
+  './lib/storage.js',
   './lib/validator.js',
   './ui/difficulty_picker.js',
   './ui/input.js',
+  './ui/region_picker.js',
   './ui/map.js',
   './ui/results.js',
   './ui/share.js',
   './data/towns.json',
   './data/geography.json',
+  './data/terrain.png',
   './icons/icon-192.png',
 ];
 

@@ -41,8 +41,13 @@
       --map-land:      #16202e;
       --map-coast:     rgba(255,255,255,0.30);
       --map-border:    rgba(130,180,220,0.38);
+      --map-river:     rgba(120,175,220,0.42);
       --map-lake:      rgba(130,180,220,0.55);
       --map-lake-fill: #1e4a70;
+      /* Hillshade strength. Lower in the dark theme: soft-light over a near
+         black land fill exaggerates the highlights, and the relief starts to
+         read as noise rather than terrain. */
+      --map-terrain-opacity: 0.45;
       --map-grid:      #1e3a52;
       --dot-idle:      #2e7ab5;
       --dot-guessed:   #f97316;
@@ -73,8 +78,10 @@
       --map-land:      #4a7c59;
       --map-coast:     rgba(0,0,0,0.35);
       --map-border:    rgba(255,255,255,0.5);
+      --map-river:     rgba(255,255,255,0.5);
       --map-lake:      rgba(255,255,255,0.6);
       --map-lake-fill: #1565a8;
+      --map-terrain-opacity: 0.8;
       --map-grid:      rgba(0,50,120,0.28);
       --dot-idle:      #f0f5fa;
       --dot-guessed:   #c2410c;
@@ -386,6 +393,48 @@
     .guess-info strong { font-size: 0.95rem; color: var(--text-primary); }
     .region-name { font-size: 0.75rem; color: var(--text-muted); }
 
+    /* Region selector — sits above the guess box in the left column. */
+    #region-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .region-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.03em;
+    }
+    .region-select {
+      flex: 1;
+      min-width: 0;
+      padding: 0.4rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .region-select:focus-visible {
+      outline: 2px solid var(--border);
+      outline-offset: 1px;
+    }
+
+    /* Bearing arrow — a single glyph rotated to the exact compass bearing.
+       inline-block is required for transform to apply at all. The glyph points
+       east when unrotated, so results.js subtracts 90deg to put 0deg at north;
+       doing that in one place beats splitting it across CSS and JS. */
+    .bearing {
+      display: inline-block;
+      margin-left: 0.4rem;
+      color: var(--text-highlight);
+      transform-origin: 50% 50%;
+      font-size: 0.95em;
+      line-height: 1;
+    }
+
     .distance-block { text-align: right; flex-shrink: 0; width: 110px; }
     .dist-label { font-size: 0.75rem; color: var(--text-highlight); }
 
@@ -537,8 +586,10 @@
   //   →  if done: endRound() → calcScore() → push to roundResults[]
   //   →  if last round: endSession() → share()
 
-  import { getDailyTargets } from './lib/daily_target.js';
+  import { getDailyTargets, getRandomTargets } from './lib/daily_target.js';
   import { createGame } from './lib/game.js';
+  import { createRegionPicker } from './ui/region_picker.js';
+  import * as storage from './lib/storage.js';
   import { createInput } from './ui/input.js';
   import { createMap } from './ui/map.js';
   import { renderResults } from './ui/results.js';
@@ -547,7 +598,7 @@
   import { createDifficultyPicker } from './ui/difficulty_picker.js';
   import { calcScore } from './lib/scoring.js';
 
-  const ROUNDS = 5; // towns per session
+  const MAX_ROUNDS = 5; // towns per session, when the pool can supply that many
   const main = document.getElementById('main');
   const dailyBtn = document.getElementById('daily-btn');
   const randomBtn = document.getElementById('random-btn');
@@ -595,9 +646,10 @@
 
   let mode = 'daily';
   let difficultyKey = localStorage.getItem('difficulty') || 'moderate';
+  let region = localStorage.getItem('region') || null; // null = whole country
 
   // Session state — reset at the start of every session
-  let targets = [];      // 5 town objects chosen for this session
+  let targets = [];      // town objects chosen for this session (up to MAX_ROUNDS)
   let currentRound = 0;  // index into targets[] (0–4)
   let roundResults = []; // [{ target, guesses[], score, won }, …] — one per completed round
 
@@ -607,6 +659,7 @@
 
   main.innerHTML = `
     <div class="left-col">
+      <div id="region-container"></div>
       <div id="input-container"></div>
       <div id="map-container"></div>
     </div>
@@ -623,7 +676,24 @@
     key => {
       difficultyKey = key;
       localStorage.setItem('difficulty', key);
+      // Changing difficulty changes which towns are drawn, so the session in
+      // progress no longer applies — drop the save rather than let load()
+      // reject it silently later.
+      storage.clear();
       rebuildMap();
+      startSession();
+    }
+  );
+
+  createRegionPicker(
+    document.getElementById('region-container'),
+    towns,
+    region,
+    value => {
+      region = value;
+      if (value) localStorage.setItem('region', value);
+      else localStorage.removeItem('region');
+      storage.clear();
       startSession();
     }
   );
@@ -640,13 +710,9 @@
   rebuildMap();
 
   function getTargets() {
-    const d = new Date();
-    const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    if (mode === 'daily') return getDailyTargets(towns, today);
-    return [1, 2, 3, 4, 5].map(tier => {
-      const pool = towns.filter(t => t.difficulty === tier);
-      return pool[Math.floor(Math.random() * pool.length)];
-    });
+    return mode === 'daily'
+      ? getDailyTargets(towns, storage.todayString(), region, MAX_ROUNDS)
+      : getRandomTargets(towns, region, MAX_ROUNDS);
   }
 
   function renderRoundHeader() {
@@ -655,7 +721,7 @@
     const stars = '★'.repeat(diff) + `<span class="empty">${'★'.repeat(5 - diff)}</span>`;
     document.getElementById('round-header').innerHTML = `
       <div class="round-header">
-        <span>Town ${currentRound + 1} of ${ROUNDS}</span>
+        <span>Town ${currentRound + 1} of ${targets.length}</span>
         <span class="diff-stars">${stars}</span>
         <span class="round-score">${score} pts</span>
       </div>
@@ -667,7 +733,83 @@
     currentRound = 0;
     roundResults = [];
     document.getElementById('share-container').innerHTML = '';
+    if (!targets.length) {           // a region with no towns should be impossible
+      document.getElementById('results-container').innerHTML =
+        '<div class="game-over-msg">No towns in this region.</div>';
+      return;
+    }
     startRound();
+  }
+
+  // Rebuilds a saved daily session. Guesses are stored as names only, so each
+  // one is resolved against towns.json and replayed through game.submitGuess —
+  // that recomputes every distance and bearing from live data rather than
+  // trusting numbers written to storage on an earlier version of the code.
+  function restoreSession(saved) {
+    targets = getTargets();
+    if (!targets.length) return false;
+    // The save was written against a session of this shape; if the town list
+    // has been regenerated since, the rounds no longer line up.
+    if (saved.currentRound >= targets.length) return false;
+
+    const byName = new Map(towns.map(t => [t.name, t]));
+    roundResults = [];
+    for (let i = 0; i < saved.roundResults.length && i < targets.length; i++) {
+      const r = saved.roundResults[i];
+      const g = createGame(targets[i], difficultyKey);
+      let state;
+      for (const name of r.guesses) {
+        const town = byName.get(name);
+        if (town) state = g.submitGuess(town);
+      }
+      if (!state || state.status === 'playing') return false; // save is inconsistent
+      roundResults.push({
+        target: state.target,
+        guesses: state.guesses,
+        score: calcScore(state.guesses.length, state.status === 'won'),
+        won: state.status === 'won',
+      });
+    }
+
+    currentRound = saved.currentRound;
+    document.getElementById('share-container').innerHTML = '';
+
+    // Every round already finished — restore straight to the end-of-session view.
+    if (roundResults.length >= targets.length) {
+      currentRound = targets.length - 1;
+      const last = roundResults[roundResults.length - 1];
+      game = null;
+      inputCtrl.disable();
+      mapCtrl.reset();
+      mapCtrl.update(last.guesses, last.won ? 'won' : 'lost', last.target);
+      renderRoundHeader();
+      renderResults(document.getElementById('results-container'),
+        last.guesses, last.won ? 'won' : 'lost', last.target,
+        DIFFICULTIES[difficultyKey].maxGuesses, DIFFICULTIES[difficultyKey]);
+      endSession();
+      return true;
+    }
+
+    startRound();
+    // Replay the in-progress round's guesses on top of the fresh round.
+    for (const name of saved.guesses) {
+      const town = byName.get(name);
+      if (town) handleGuess(town);
+    }
+    return true;
+  }
+
+  // Called after every guess and at each round boundary. Random sessions are
+  // not persisted — see lib/storage.js.
+  function persist() {
+    if (mode !== 'daily') return;
+    storage.save({
+      difficulty: difficultyKey,
+      region,
+      currentRound,
+      roundResults,
+      guesses: game ? game.getState().guesses : [],
+    });
   }
 
   function startRound() {
@@ -681,7 +823,7 @@
     renderResults(
       document.getElementById('results-container'),
       [], 'playing', targets[currentRound],
-      DIFFICULTIES[difficultyKey].maxGuesses
+      DIFFICULTIES[difficultyKey].maxGuesses, DIFFICULTIES[difficultyKey]
     );
   }
 
@@ -697,11 +839,13 @@
     renderResults(
       document.getElementById('results-container'),
       newState.guesses, newState.status, newState.target,
-      DIFFICULTIES[difficultyKey].maxGuesses
+      DIFFICULTIES[difficultyKey].maxGuesses, DIFFICULTIES[difficultyKey]
     );
 
     if (newState.status === 'won' || newState.status === 'lost') {
       endRound(newState);
+    } else {
+      persist();
     }
   }
 
@@ -712,8 +856,13 @@
     roundResults.push({ target: state.target, guesses: state.guesses, score, won });
     renderRoundHeader();
 
-    const isLast = currentRound === ROUNDS - 1;
+    const isLast = currentRound === targets.length - 1;
     const resultsEl = document.getElementById('results-container');
+
+    persist();
+    // Frame the answer and every guess: after six guesses the player has often
+    // panned somewhere else entirely, and the reveal is the whole payoff.
+    mapCtrl.fit([...state.guesses, state.target]);
 
     if (won) {
       const label = state.guesses.length === 1 ? 'First guess!' : `Got it in ${state.guesses.length}!`;
@@ -731,6 +880,7 @@
       `);
       document.getElementById('next-round-btn').addEventListener('click', () => {
         currentRound++;
+        persist();
         startRound();
       });
     } else {
@@ -741,9 +891,9 @@
   function endSession() {
     const total = roundResults.reduce((s, r) => s + r.score, 0);
     document.getElementById('results-container').insertAdjacentHTML('beforeend', `
-      <div class="session-total">Final score: ${total} / ${ROUNDS * 200}</div>
+      <div class="session-total">Final score: ${total} / ${targets.length * 200}</div>
     `);
-    share(document.getElementById('share-container'), roundResults, difficultyKey);
+    share(document.getElementById('share-container'), roundResults, difficultyKey, region);
   }
 
   dailyBtn.addEventListener('click', () => {
@@ -752,7 +902,9 @@
     dailyBtn.classList.add('active');
     randomBtn.classList.remove('active');
     newGameBtn.style.display = 'none';
-    startSession();
+    // Returning to daily resumes today's session if one was saved before the
+    // player wandered off into random mode.
+    boot();
   });
 
   randomBtn.addEventListener('click', () => {
@@ -765,7 +917,24 @@
 
   newGameBtn.addEventListener('click', startSession);
 
-  startSession();
+  // Resume today's daily session if there is one, otherwise start fresh. A save
+  // that fails to restore cleanly is discarded rather than half-applied.
+  function boot() {
+    if (mode === 'daily') {
+      const saved = storage.load({ difficulty: difficultyKey, region });
+      if (saved) {
+        try {
+          if (restoreSession(saved)) return;
+        } catch (err) {
+          console.warn('Could not restore saved session:', err);
+        }
+        storage.clear();
+      }
+    }
+    startSession();
+  }
+
+  boot();
 
   // ── PWA ───────────────────────────────────────────────────────────────────
   // Registered after startSession so the service worker's precache pass never

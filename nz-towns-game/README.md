@@ -10,20 +10,23 @@ five for every player. Guess each one in six attempts from distance clues.
 ## How to play
 
 - Type a town, city or region into the search box, or click a dot on the map
-- After each guess you'll see how far away you were in kilometres
+- After each guess you'll see how far away you were, and which way to go
 - The heat bar shows how close you are — green means hot, red means cold
 - Six attempts per town, five towns per session, 1000 points on the line
+- Pick a region to play just that part of the country. Small regions make for
+  short sessions — Nelson has one town in the list, so it is a single round.
+- Your daily session is saved as you go, so you can close the tab and come back
 
 Macrons are optional. Typing `taupo` finds Taupō, `whangarei` finds Whangārei.
 
 Three difficulties, all with six guesses — what changes is how much help the map
 gives you:
 
-| | grid | distance rings | dots visible |
-|---|---|---|---|
-| Easy | yes | yes | yes |
-| Moderate | yes | no | yes |
-| Hard | no | no | no |
+| | grid | distance rings | dots visible | bearing |
+|---|---|---|---|---|
+| Easy | yes | yes | yes | yes |
+| Moderate | yes | no | yes | yes |
+| Hard | no | no | no | no |
 
 On Hard the dots are invisible but still clickable, so the map stays usable as
 an input if you know where you're pointing.
@@ -53,6 +56,7 @@ cache their downloads in `scripts/.cache/` (gitignored).
 python3 scripts/generate_towns.py             # → data/towns.json
 python3 scripts/generate_difficulty_scores.py # → adds difficulty tiers, in place
 python3 scripts/generate_geography.py          # → data/geography.json
+python3 scripts/generate_terrain.py            # → data/terrain.png
 ```
 
 Run the difficulty script after the towns script — it edits `towns.json` in
@@ -61,8 +65,8 @@ place and will be overwritten otherwise.
 ## Tests
 
 ```bash
-node --test lib/ring_calculator.test.js
+node --test lib/logic.test.js
 ```
 
-Covers the ring geometry, the distance calculation, and macron-insensitive
-matching.
+Covers ring geometry, distance and bearing, macron-insensitive matching, and
+daily/region target selection.

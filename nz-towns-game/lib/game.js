@@ -5,14 +5,14 @@
 // State shape returned by submitGuess() and getState():
 //   {
 //     target:      town object (the answer),
-//     guesses:     [ { ...townObj, distance, correct }, … ],
+//     guesses:     [ { ...townObj, distance, bearing, correct }, … ],
 //     attempts:    number of guesses made,
 //     maxAttempts: from DIFFICULTIES[difficulty].maxGuesses,
 //     status:      'playing' | 'won' | 'lost'
 //   }
 
 import { DIFFICULTIES } from './difficulty.js';
-import { distanceKm } from './distance.js';
+import { distanceKm, bearingDeg } from './distance.js';
 
 export function createGame(target, difficulty = 'moderate') {
   const { maxGuesses } = DIFFICULTIES[difficulty];
@@ -29,8 +29,11 @@ export function createGame(target, difficulty = 'moderate') {
 
     const isCorrect = town.name === state.target.name;
     const distance = isCorrect ? 0 : distanceKm(town, state.target);
+    // Bearing is always computed and stored; whether the player is shown it is
+    // a difficulty decision made in the UI, not here.
+    const bearing = isCorrect ? null : bearingDeg(town, state.target);
 
-    state.guesses.push({ ...town, distance, correct: isCorrect });
+    state.guesses.push({ ...town, distance, bearing, correct: isCorrect });
     state.attempts++;
 
     if (isCorrect) {
