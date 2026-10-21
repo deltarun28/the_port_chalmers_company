@@ -8,7 +8,7 @@
 //
 //   tap / left click        reveal (or chord, on a revealed number)
 //   right click             flag
-//   long press (400ms)      flag — the touch equivalent of a right click
+//   long press (400ms)      flag, touch only. A held mouse button is just a click
 //   flag mode on            tap flags instead of revealing
 //
 // All listeners are delegated to the container, so there are three of them
@@ -23,30 +23,43 @@ export function createGrid(container, { onReveal, onFlag, onChord }) {
 
   // Set by a long press so the click that follows it doesn't also reveal.
   let suppressNextClick = false;
+  // Set once the current press has flagged a cell, by its timer or by a context
+  // menu. A press flags at most once, whichever of the two comes first.
+  let flaggedThisPress = false;
   let pressTimer = null;
-  let pressedIndex = -1;
 
   const rc = i => [Math.floor(i / game.cols), i % game.cols];
 
   function cancelPress() {
     clearTimeout(pressTimer);
     pressTimer = null;
-    pressedIndex = -1;
   }
 
   container.addEventListener('pointerdown', e => {
+    // Every press starts unsuppressed. On touch, the click that would have
+    // followed a long press is not always delivered, and a leftover flag would
+    // swallow the next tap.
+    suppressNextClick = false;
+    // A second finger is not a new press, so it keeps the first one's state.
+    if (e.isPrimary) flaggedThisPress = false;
+    // Clear any timer from an earlier pointer before anything else. Otherwise
+    // a second finger leaves the first timer running with nothing to cancel it.
+    cancelPress();
     const cell = e.target.closest('.cell');
     if (!cell || !game) return;
-    // Only a primary press arms the long-press timer; a right click is already
-    // a flag and shouldn't also fire one on release.
-    if (e.button !== 0) return;
+    // Only a primary touch arms the long-press timer. A right click is already
+    // a flag, a held mouse button should reveal like any click, and a second
+    // finger is a pinch or a pan, so it must not flag anything.
+    if (e.button !== 0 || e.pointerType === 'mouse' || !e.isPrimary) return;
 
-    pressedIndex = Number(cell.dataset.i);
+    const i = Number(cell.dataset.i);
     pressTimer = setTimeout(() => {
+      pressTimer = null;
       suppressNextClick = true;
-      const [r, c] = rc(pressedIndex);
+      if (flaggedThisPress) return;
+      flaggedThisPress = true;
+      const [r, c] = rc(i);
       onFlag(r, c);
-      cancelPress();
       if (navigator.vibrate) navigator.vibrate(15);
     }, LONG_PRESS_MS);
   });
@@ -76,6 +89,10 @@ export function createGrid(container, { onReveal, onFlag, onChord }) {
     const cell = e.target.closest('.cell');
     if (!cell || !game) return;
     e.preventDefault();               // no browser menu on a right-click flag
+    // Android can send contextmenu for a long press as well as the timer does.
+    // Whichever comes first flags the cell, and the other one does nothing.
+    if (flaggedThisPress) return;
+    flaggedThisPress = true;
     const [r, c] = rc(Number(cell.dataset.i));
     onFlag(r, c);
   });

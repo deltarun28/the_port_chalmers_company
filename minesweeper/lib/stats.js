@@ -4,21 +4,32 @@
 // All reads are defensive: localStorage can be unavailable (private mode, or a
 // browser configured to block storage), and the stored blob can be anything if
 // a user has edited it. A game that can't remember your best time should still
-// be playable, so every failure path degrades to "no stats".
+// be playable, so a bad value is dropped on its own and the scores beside it are
+// kept.
 
 const KEY = 'minesweeper.stats.v1';
 
 const EMPTY = () => ({ played: {}, won: {}, best: {} });
+
+const isRecord = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+const isCount = v => Number.isInteger(v) && v >= 0;
+const isSeconds = v => Number.isFinite(v) && v >= 0;
+
+/** The entries of `record` whose values pass `valid`. Anything else is dropped. */
+const keep = (record, valid) => (isRecord(record)
+  ? Object.fromEntries(Object.entries(record).filter(([, v]) => valid(v)))
+  : {});
 
 export function load() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return EMPTY();
     const parsed = JSON.parse(raw);
+    if (!isRecord(parsed)) return EMPTY();
     return {
-      played: parsed?.played ?? {},
-      won: parsed?.won ?? {},
-      best: parsed?.best ?? {},
+      played: keep(parsed.played, isCount),
+      won: keep(parsed.won, isCount),
+      best: keep(parsed.best, isSeconds),
     };
   } catch {
     return EMPTY();

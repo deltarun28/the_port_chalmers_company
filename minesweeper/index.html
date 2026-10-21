@@ -38,8 +38,8 @@
       /* Grid: hidden cells sit proud of the board, revealed cells sink into it.
          These two need to stay clearly apart — telling covered from uncovered
          at a glance is the whole game. */
-      --cell-hidden:      #21496f;
-      --cell-hidden-edge: #3a7cb8;
+      --cell-hidden:      #306896;
+      --cell-hidden-edge: #6fb1e3;
       --cell-revealed:    #0a1420;
       --cell-line:        #12283f;
 
@@ -56,12 +56,12 @@
       --border-subtle:  #90b8d8;
       --text-primary:   #06111e;
       --text-secondary: #1a4d80;
-      --text-muted:     #2d6fa8;
+      --text-muted:     #2a6499;
       --text-highlight: #0a3560;
       --bg-won:  #dcfce7;  --border-won:  #16a34a;  --text-won:  #14532d;
       --bg-fail: #fee2e2;  --border-fail: #dc2626;  --text-fail: #7f1d1d;
 
-      --cell-hidden:      #93bade;
+      --cell-hidden:      #5a8fc0;
       --cell-hidden-edge: #ffffff;
       --cell-revealed:    #f4f9fd;
       --cell-line:        #b6cfe4;
@@ -190,9 +190,11 @@
       padding: 2px;
       margin: 0 auto;
       width: max-content;
-      /* The board is a game surface: no text selection on a double tap, no
-         browser panning/zooming gestures stealing a long press. */
-      touch-action: none;
+      /* The board is a game surface: no text selection on a double tap, and no
+         pinch or double-tap zoom. Panning is allowed, so an expert board can be
+         scrolled by touch. A pan cancels a pending long press (see grid.js), so
+         a drag never flags a cell. */
+      touch-action: pan-x pan-y;
       user-select: none;
       -webkit-user-select: none;
       -webkit-tap-highlight-color: transparent;
@@ -299,7 +301,7 @@
   <footer>
     <div class="best" id="best"></div>
     <div>
-      Right-click or long-press to flag · click a number to chord ·
+      Right-click (or long-press on touch) to flag · click a number to chord ·
       <kbd>N</kbd> new game · <kbd>F</kbd> flag mode
     </div>
     <div>Runs fully offline. No ads, no accounts, no data leaves your device.</div>
@@ -325,7 +327,12 @@
   // Preferences (chosen difficulty, theme, flag mode) are the only thing we
   // persist besides best times, and they never leave localStorage.
   function loadPrefs() {
-    try { return JSON.parse(localStorage.getItem(PREFS_KEY)) ?? {}; }
+    try {
+      const prefs = JSON.parse(localStorage.getItem(PREFS_KEY));
+      // Only an object can hold settings. Anything else is replaced, so its
+      // characters can't be spread into the next save.
+      return prefs !== null && typeof prefs === 'object' && !Array.isArray(prefs) ? prefs : {};
+    }
     catch { return {}; }
   }
   function savePrefs(patch) {
@@ -334,7 +341,9 @@
   }
 
   const prefs = loadPrefs();
-  let levelKey = LEVELS[prefs.level] ? prefs.level : 'beginner';
+  // hasOwn, not a bare lookup: LEVELS['constructor'] is truthy, and a stray
+  // pref like that would otherwise build a board with no cells.
+  let levelKey = Object.hasOwn(LEVELS, prefs.level) ? prefs.level : 'beginner';
   let game = null;
   let ticker = null;
   let startedAt = 0;
@@ -433,6 +442,9 @@
   function finish() {
     stopClock();
     tick();
+    // A win auto-flags the mines nobody marked. Those cells aren't in the move's
+    // change list, so repaint the whole board once the game is over.
+    grid.update();
     minesEl.textContent = `🚩 ${minesRemaining(game)}`;
 
     if (game.status === 'won') {
