@@ -25,3 +25,17 @@ Needs to be served over HTTP (not opened as a file) due to ES modules and data f
 python3 -m http.server 8765
 # then open http://localhost:8765/capitals-game/
 ```
+
+## Offline
+
+The service worker precaches the whole game, including the flag stylesheet and
+the 195 flags from `flag-icons@7.2.3`, which are vendored in `vendor/`. Nothing
+is loaded from a CDN. Cache version: `CACHE_VERSION` in `sw.js`.
+
+After changing any precached file, bump `CACHE_VERSION` and copy the new values
+printed by the static test into `tests/release.json`.
+
+```bash
+node --test "tests/*.test.mjs" lib/ring_calculator.test.js           # Node checks
+PLAYWRIGHT_CORE=/path/to/node_modules/playwright-core CHROME_PATH=/usr/bin/chromium node --test "tests/*.test.mjs" lib/ring_calculator.test.js     # plus browser checks
+```
