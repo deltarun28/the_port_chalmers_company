@@ -70,3 +70,15 @@ node --test lib/logic.test.js
 
 Covers ring geometry, distance and bearing, macron-insensitive matching, and
 daily/region target selection.
+
+## Offline
+
+The service worker precaches the whole game: HTML, modules, town and terrain
+data, and icons. Cache version: `CACHE_VERSION` in `sw.js`. After changing any
+precached file, bump it and copy the values printed by the static test into
+`tests/release.json`.
+
+```bash
+node --test "tests/*.test.mjs" lib/logic.test.js                    # Node checks
+PLAYWRIGHT_CORE=/path/to/node_modules/playwright-core CHROME_PATH=/usr/bin/chromium node --test "tests/*.test.mjs" lib/logic.test.js              # plus browser checks
+```

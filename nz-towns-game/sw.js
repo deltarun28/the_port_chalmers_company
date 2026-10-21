@@ -1,14 +1,17 @@
 // Service worker — makes the game installable as a PWA and playable offline.
 //
 // Strategy:
-//   - install:  precache the app shell (HTML, modules, data files, manifest).
-//   - navigate: network-first, falling back to the cached index.html offline.
-//   - same-origin assets: cache-first (everything is precached and immutable
-//     within one deploy).
+//   - install:  precache the whole app shell, data and icons. Each file is fetched
+//               with cache: 'reload', so a copy sitting in the browser's HTTP cache
+//               can't be pinned into a new version.
+//   - fetch:    cache-first, read only from this version's cache. The page and
+//               every file it loads come from the same deploy, so they can never
+//               disagree. Anything not precached goes to the network.
 //
-// There is no cross-origin handling here. The world game had to fetch flag SVGs
-// from a CDN and cache them lazily; this game loads nothing off-origin at all,
-// so a same-origin cache-first rule covers every request it can make.
+// Nothing the game loads comes from another origin, so once installed it never
+// needs the network. A changed sw.js installs in the background. The launch that
+// finds the update is still served from the old cache, and the next launch gets
+// the new one.
 //
 // IMPORTANT: bump CACHE_VERSION on every deploy that changes any precached
 // file, otherwise returning players keep the old cached version.
@@ -20,7 +23,7 @@
 // games' offline caches, and whichever game you opened last would be the only
 // one that still worked offline.
 const CACHE_PREFIX = 'nz-towns-';
-const CACHE_VERSION = `${CACHE_PREFIX}v3`;
+const CACHE_VERSION = `${CACHE_PREFIX}v4`;
 
 const PRECACHE = [
   './',
@@ -45,12 +48,15 @@ const PRECACHE = [
   './data/geography.json',
   './data/terrain.png',
   './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(PRECACHE))
+      .then(cache => cache.addAll(PRECACHE.map(url => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -70,18 +76,16 @@ self.addEventListener('fetch', e => {
   const { request } = e;
   if (request.method !== 'GET') return;
 
-  // Page loads: try the network so deploys are picked up, fall back to cache offline
-  if (request.mode === 'navigate') {
-    e.respondWith(
-      fetch(request).catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
+  // Cross-origin requests are not something this game makes. If one ever shows
+  // up, let it go straight to the network rather than caching it.
   if (new URL(request.url).origin !== self.location.origin) return;
 
-  // Cache-first: all same-origin assets are precached and versioned by deploy
+  // There is only one page, so every navigation gets the cached shell whatever
+  // URL it asked for. The lookup is limited to this version's cache.
+  const key = request.mode === 'navigate' ? './index.html' : request;
   e.respondWith(
-    caches.match(request).then(hit => hit || fetch(request))
+    caches.open(CACHE_VERSION)
+      .then(cache => cache.match(key))
+      .then(hit => hit || fetch(request))
   );
 });
