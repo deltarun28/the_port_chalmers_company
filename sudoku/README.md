@@ -70,3 +70,14 @@ python3 -m http.server 8765
 ```bash
 python3 scripts/generate_icons.py   # needs Pillow
 ```
+
+## Offline
+
+The service worker precaches the whole game. Cache version: `CACHE_VERSION` in
+`sw.js`. After changing any precached file, bump it and copy the values printed
+by the static test into `tests/release.json`.
+
+```bash
+node --test "tests/*.test.mjs"                                       # Node checks
+PLAYWRIGHT_CORE=/path/to/node_modules/playwright-core CHROME_PATH=/usr/bin/chromium node --test "tests/*.test.mjs"                                 # plus browser checks
+```
