@@ -25,7 +25,7 @@
 // games' offline caches, and whichever game you opened last would be the only
 // one that still worked offline.
 const CACHE_PREFIX = 'minesweeper-';
-const CACHE_VERSION = `${CACHE_PREFIX}v2`;
+const CACHE_VERSION = `${CACHE_PREFIX}v3`;
 
 const PRECACHE = [
   './',

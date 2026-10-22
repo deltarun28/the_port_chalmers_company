@@ -17,7 +17,7 @@ Vanilla ES modules, no build, no runtime dependencies. Served as static files by
 | `lib/game.js` | State machine: `reveal`, `toggleFlag`, `chord`, win and loss. Returns the changed cells. Pure |
 | `lib/stats.js` | Best times and counts in `localStorage`. Each field is checked on its own, and bad entries are dropped |
 | `ui/grid.js` | Renders cells and patches changed ones. Pointer input: mouse, touch and long press |
-| `sw.js` | Precache of the app shell. Cache-first, from `minesweeper-v2` only |
+| `sw.js` | Precache of the app shell. Cache-first, from `minesweeper-v3` only |
 | `tests/` | `logic.test.mjs` and `static.test.mjs` always run. `offline.e2e.test.mjs` runs in Chromium when `PLAYWRIGHT_CORE` is set. `release.json` holds the release values |
 
 **Data model.** `game` holds `rows`, `cols`, `mineCount`, `status` (`ready` → `playing` → `won` or `lost`), and `Uint8Array` masks for `revealed` and `flagged`. `mines` and `adjacent` are allocated on the first reveal, so the first click is always safe.
@@ -33,7 +33,7 @@ Vanilla ES modules, no build, no runtime dependencies. Served as static files by
 - `minesweeper.prefs.v1`: `{ level, light, flagMode }`. A stored value that is not an object is replaced with the defaults.
 - `minesweeper.stats.v1`: `{ played, won, best }`. Each field is checked separately. A bad entry is dropped, valid entries are kept, and the next save writes back only the valid ones.
 
-**Offline and updates.** Install precaches the shell. Every request is answered from `minesweeper-v2`, cache-first, so the page and its modules always come from the same deploy. A changed `sw.js` installs in the background. The launch that finds it still runs the cached copy, and the next launch gets the new one. This is the agreed behaviour. From v2 onward a deploy cannot mix versions. Players still on v1 get one mixed launch when v2 first arrives. The upgrade was tested and works (§3).
+**Offline and updates.** Install precaches the shell. Every request is answered from `minesweeper-v3`, cache-first, so the page and its modules always come from the same deploy. A changed `sw.js` installs in the background. The launch that finds it still runs the cached copy, and the next launch gets the new one. This is the agreed behaviour. From v2 onward a deploy cannot mix versions. Players still on v1 get one mixed launch when v2 first arrives. The upgrade was tested and works (§3).
 
 ## 2. Completed
 
@@ -55,7 +55,7 @@ Vanilla ES modules, no build, no runtime dependencies. Served as static files by
 
 **Tests.** 30 in total: 15 Node checks and 15 Chromium checks. All pass. Each new bug test was run against the previous code and failed for the reason it names. The preference test was checked the same way with the old `loadPrefs`. Two new tests passed on the old code: the wrong-shape stats test and the second-long-press test. They guard existing behaviour, so they are not evidence of a fix.
 
-**Release.** `cacheVersion` is `v2`. v2 had not been published before this push, so no version bump was needed. `tests/release.json` holds `precacheSha256` `93c92489…`, which matches the precached files. If anything at v2 is ever published and then changed, bump to `v3` before deploying.
+**Release.** `cacheVersion` is `v3`. v3 was published to restore caches that the old Study Quiz deleted. Its precached files are unchanged, so `precacheSha256` is still `93c92489…`. Any change to a precached file needs a new cache version and an updated `tests/release.json`.
 
 ## 3. Verification
 

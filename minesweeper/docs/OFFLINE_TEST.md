@@ -6,13 +6,14 @@ The checks marked **[Android-only]** cover behaviour that the automated tests ca
 
 **Automated results do not count as an Android pass.** On desktop Chromium, all 29 automated checks pass for this build. They cover offline launch and play, the upgrade from the deployed v1 build, touch and mouse input in emulation, malformed saved data and text contrast. Only the phone results in this script count as an Android pass.
 
-**What this build changes**, so you know what to look for (cache `minesweeper-v2`):
+**What this build changes**, so you know what to look for (cache `minesweeper-v3`):
 - A second finger on the board no longer flags a cell or changes the mine counter.
 - A held mouse click reveals instead of flagging. Right-click still flags.
 - Malformed saved data is repaired one field at a time, and valid scores are kept.
 - Light-theme text is a little darker, to meet contrast guidelines.
 - Covered cells are a stronger blue with a brighter edge, so they stand out from revealed cells in both themes.
 - A press that produces both a long press and a context menu flags only once.
+- After an update, the offline cache is rebuilt in full, even if another app's update deleted it earlier. Saved scores and settings are kept.
 
 ---
 
@@ -152,7 +153,7 @@ Do this after a later deploy that changes the game. The tester should know what 
 | 9. Updates | | |
 | 10. Final checks | | |
 
-**Build:** cache `minesweeper-v2`, on `main` · commit: ______________
+**Build:** cache `minesweeper-v3`, on `main` · commit: ______________
 
 **Phone:** ______________________ **Android:** ______ **Chrome:** ______
 

@@ -283,6 +283,69 @@ test('a deployed update replaces the old cache on the next launch', { skip }, as
   }
 });
 
+test('an update restores the whole cache after it was deleted, and keeps saved data', { skip }, async () => {
+  // A phone with the previous build (v2) installed. The old Study Quiz then deleted every
+  // cache on the origin. This build must refill its own cache and leave saved data alone.
+  const previous = await mkdtemp(join(tmpdir(), 'minesweeper-previous-'));
+  try {
+    await cp(APP_DIR, join(previous, 'minesweeper'), {
+      recursive: true,
+      filter: src => !src.startsWith(join(APP_DIR, 'tests')),
+    });
+    const v2Sw = (await readFile(SW_SOURCE, 'utf8'))
+      .replace(/(\$\{CACHE_PREFIX\}v)\d+/, (_, prefix) => `${prefix}2`);
+    await writeFile(join(previous, 'minesweeper', 'sw.js'), v2Sw);
+
+    const source = await readFile(SW_SOURCE, 'utf8');
+    const current = `minesweeper-${source.match(/\$\{CACHE_PREFIX\}(v\d+)/)[1]}`;
+    const precacheSize = (source.match(/const PRECACHE = \[([\s\S]*?)\];/)[1].match(/'[^']+'/g)).length;
+    const stats = { played: { beginner: 3 }, won: { beginner: 1 }, best: { beginner: 42 } };
+    const prefs = { level: 'beginner', light: true, flagMode: true };
+    const cacheNames = page => page.evaluate(async () => (await caches.keys()).sort());
+    const cacheEntries = (page, name) => page.evaluate(async n => (await (await caches.open(n)).keys()).length, name);
+
+    root = previous;
+    const context = await browser.newContext();
+    const { page, errors } = await openApp(context);
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 60000 });
+    await page.evaluate(({ s, p }) => {
+      localStorage.setItem('minesweeper.stats.v1', JSON.stringify(s));
+      localStorage.setItem('minesweeper.prefs.v1', JSON.stringify(p));
+    }, { s: stats, p: prefs });
+
+    // The old Study Quiz deleted the cache.
+    await page.evaluate(async () => { for (const k of await caches.keys()) await caches.delete(k); });
+    assert.deepEqual(await cacheNames(page), [], 'the simulated quiz deletion should leave no cache');
+
+    // "Deploy": the server now returns this build.
+    root = SITE;
+    await page.reload();
+
+    const deadline = Date.now() + 30000;
+    let names = await cacheNames(page);
+    while (names.join() !== current && Date.now() < deadline) {
+      await page.waitForTimeout(250);
+      names = await cacheNames(page);
+    }
+    assert.deepEqual(names, [current], 'this build should replace the deleted cache');
+    assert.equal(await cacheEntries(page, current), precacheSize, 'the restored cache should hold every precached file');
+
+    await context.setOffline(true);
+    await page.reload();
+    await page.waitForSelector('.cell', { timeout: 15000 });
+    assert.equal(await page.locator('.cell').count(), 81);
+    assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('minesweeper.stats.v1'))), stats,
+      'saved scores changed during the update');
+    assert.deepEqual(JSON.parse(await page.evaluate(() => localStorage.getItem('minesweeper.prefs.v1'))), prefs,
+      'saved settings changed during the update');
+    assert.deepEqual(errors, []);
+    await context.close();
+  } finally {
+    root = SITE;
+    await rm(previous, { recursive: true, force: true });
+  }
+});
+
 // Centre of a cell, in page coordinates, for the pointer checks below.
 async function centre(page, i) {
   const box = await page.locator(`.cell[data-i="${i}"]`).boundingBox();

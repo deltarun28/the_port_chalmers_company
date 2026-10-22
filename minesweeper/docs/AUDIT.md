@@ -16,7 +16,7 @@ This is the pilot audit for the Port Chalmers PWA collection. It covers offline 
 | Hosting | Static files in `software/port-chalmers-company`, served by GitHub Pages at `https://deltarun28.github.io/the_port_chalmers_company/minesweeper/` (pattern A in `software/PWA-HOSTING.md`) |
 | Network use | None after install. No fonts, scripts, analytics or APIs. Checked by a test |
 | Storage | `localStorage` only: `minesweeper.prefs.v1` (level, theme, flag mode) and `minesweeper.stats.v1` (played, won and best time per level) |
-| Offline model | Service worker precaches 11 entries (the app shell). Cache-first, single versioned cache (`minesweeper-v2`) |
+| Offline model | Service worker precaches 11 entries (the app shell). Cache-first, single versioned cache (`minesweeper-v3`, since the cache was rebuilt after the old Study Quiz deleted it) |
 | Tests before this work | None |
 | Tests after this work | 30: 15 Node checks that always run, 15 Chromium checks that run when a Playwright install is provided. All 30 pass |
 
